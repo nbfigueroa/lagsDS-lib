@@ -1,5 +1,13 @@
 # lagsDS-lib
+This package provides a C++ library for evaluation of the Locally Active Globally Stable (LAGS) Dynamical System, proposed in [1].
 
+Descriptino of LAGS...
+
+### Installation
+...
+
+### Usage
+...
 
 **References**     
 > [1] Figueroa, N. and Billard, A. (2018) Locally Active Globally Stable Dynamical Systems: Theory, Learning and Experiments. In preparation.      
