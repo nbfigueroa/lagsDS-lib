@@ -7,13 +7,13 @@ Descriptino of LAGS...
 Do the following steps:
 * In your catkin src directory clone the repository
 ```
-$ git clone -b nadia https://github.com/epfl-lasa/ds_motion_generator.git
+$ git clone https://github.com/nbfigueroa/lagsDS-lib.git
 ```
 * wstool gets all other git repository dependencies, after the following steps you should see extra catkin 
   packages in your src directory.
 ```
 $  wstool init
-$  wstool merge ds_motion_generator/dependencies.rosinstall 
+$  wstool merge lagsDS-lib/dependencies.rosinstall 
 $  wstool up 
 ```
 * Query and installs all libraries and packages 
