@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Learning Algorithms and Systems Laboratory, EPFL, Switzerland
+ * Copyright (C) 2019 Learning Algorithms and Systems Laboratory, EPFL, Switzerland
  * Author:  Nadia Figueroa
  * email:   nadia.figueroafernandez@epfl.ch
  * website: lasa.epfl.ch
@@ -18,12 +18,19 @@
 
 #include <stdlib.h>
 #include <string>
-#include "eigen3/Eigen/Dense"
-#include "ros/ros.h"
-#include "utils.h"
+#include <math.h>
+#include <vector>
+#include <memory>
 
-/* To use the class in the ds_motion_generators package */
+/* For ROS usage */
+#include "ros/ros.h"
 #include "MathLib.h"
+
+/* Main Dependencies */
+#include "eigen3/Eigen/Dense"
+#include "utils.h"
+#include "GPRwrap.h"
+
 
 using namespace std;
 using namespace Eigen;
@@ -48,6 +55,9 @@ private:
         VectorXd    *w_l_;
         double 		*b_l_;
         double      scale_;
+
+        /* Instatiate GPR Wrapper Class*/
+        std::unique_ptr<GPRwrap> alpha_GPR_;
 
 public:             
 
@@ -76,6 +86,7 @@ public:
         VectorXd         compute_fg(VectorXd xi, VectorXd att);
         VectorXd         compute_gamma(VectorXd xi);
         VectorXd         compute_fl(VectorXd xi);
+        double           compute_alpha(VectorXd xi);
 
         /* For YAML/ROS Interface with DS motion generators */
         MathLib::Vector  compute_fg(MathLib::Vector xi, MathLib::Vector att);

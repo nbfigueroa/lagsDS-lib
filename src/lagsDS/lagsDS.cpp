@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2018 Learning Algorithms and Systems Laboratory, EPFL, Switzerland
- * Author:  Sina Mirrazavi and Nadia Figueroa
- * email:   {sina.mirrazavi,nadia.figueroafernandez}@epfl.ch
+ * Copyright (C) 2019 Learning Algorithms and Systems Laboratory, EPFL, Switzerland
+ * Author:  Nadia Figueroa
+ * email:   nadia.figueroafernandez@epfl.ch
  * website: lasa.epfl.ch
  *
  * This work was supported by the EU project Cogimon H2020-ICT-23-2014.
@@ -39,6 +39,7 @@ lagsDS::lagsDS(const char  *path_dims):K_(0),M_(0) {
     K_ = (int)fMatrix.coeff(0,0);
     M_ = (int)fMatrix.coeff(1,0);
     setup_params();
+
 }
 
 
@@ -139,6 +140,11 @@ void lagsDS::setup_params()
     cout << "Initialized an M:" << M_ << " dimensional LAGS-DS with K: " << K_ << " Global Components" << endl;
     cout << "Initialized an M:" << M_ << " dimensional LAGS-DS with K: " << K_ << " Locally-Active Components" << endl;
     cout << "Initialized an M:" << M_ << " dimensional LAGS-DS with K: " << K_ << " Locally-Deflective Components" << endl;
+
+
+    /* Instantiate GPR Wrapper Class for alpha function*/
+    alpha_GPR_.reset(new GPRwrap( ));
+
 }
 
 
@@ -769,8 +775,6 @@ VectorXd lagsDS::compute_flk(VectorXd xi, int k){
     }
     return xi_dot;
 
-
-
 }
 
 
@@ -788,6 +792,13 @@ VectorXd   lagsDS::compute_fl(VectorXd xi){
         xi_dot = xi_dot + gamma_(k)*compute_flk(xi, k);
 
     return xi_dot;
+}
+
+
+double lagsDS::compute_alpha(VectorXd xi){
+    double alpha(0.0);
+
+    return alpha;
 }
 
 
@@ -820,7 +831,6 @@ double lagsDS::compute_rbf(double b_r, VectorXd xi, VectorXd center){
     double r;
     VectorXd xiDiff(M_);
     xiDiff = xi - center;
-//    r = 1 - exp(-b*xiDiff.norm());
     r = 1 - exp(-b_r* xiDiff.squaredNorm());
     return r;
 }

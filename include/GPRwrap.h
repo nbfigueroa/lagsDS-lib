@@ -69,7 +69,7 @@ class GPRwrap
     private:
 
         GPRModel GPRModel_;
-        double y;             // y      = sign(Gamma(x))
+        double y;
         std::unique_ptr<GaussianProcessRegression<float>> GPR_;
 
     public:

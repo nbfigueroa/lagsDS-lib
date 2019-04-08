@@ -43,6 +43,10 @@ main (int argc, char **argv)
     string path_b_l      = path_model +  "b_l";
     string path_scale    = path_model +  "scale";
 
+    /* GPR Filename */
+    string path_gpr = "/home/nbfigueroa/Dropbox/PhD_papers/LAGS-paper/new-code/lagsDS-opt/models/GPR-Models/iCub-Narrow-Passage_model.txt";
+
+
     /* Instantiate an LAGS-DS class Option 1 */
     cout << "Initialization Test 1: " << endl;
     lagsDS lagsDS_test1(path_dim.c_str());
@@ -82,12 +86,14 @@ main (int argc, char **argv)
     string path_data     = path_model +  "Data";
     string path_xi_dot_g = path_model +  "xi_dot_g";
     string path_xi_dot_l = path_model +  "xi_dot_l";
-    MatrixXd attractor, Data, xi_dot_g, xi_dot_l;
+    string path_xi_alpha = path_model +  "xi_alpha";
+    MatrixXd attractor, Data, xi_dot_g, xi_dot_l, xi_alpha;
 
     attractor = fileUtils_.readMatrix(path_att_g.c_str());
     Data      = fileUtils_.readMatrix(path_data.c_str());
     xi_dot_g  = fileUtils_.readMatrix(path_xi_dot_g.c_str());
     xi_dot_l  = fileUtils_.readMatrix(path_xi_dot_l.c_str());
+    xi_alpha  = fileUtils_.readMatrix(path_xi_alpha.c_str());
     int samples = Data.cols();
 
     /* Fill in attractor */
@@ -116,6 +122,8 @@ main (int argc, char **argv)
     VectorXd est_error_1; est_error_1.resize(samples);
     VectorXd est_error_2; est_error_2.resize(samples);
     VectorXd est_error_3; est_error_3.resize(samples);
+    VectorXd est_error_4; est_error_4.resize(samples);
+    double alpha_mat(0.0), alpha_test(0.0);
 
     lagsDS_test3.set_att_g(att);
     for (int i=0; i<samples; i++){
@@ -141,7 +149,13 @@ main (int argc, char **argv)
         xi_dot_test_l  =  lagsDS_test3.compute_fl(xi_ref_test);
         xi_dot_error   =  xi_dot_test_l - xi_dot_mat_l;
         est_error_3[i] =  xi_dot_error.norm();
-//        cout << " fl errors:" << est_error_3[i] << endl;
+
+        /* Computing error between this estimate (using alpha) and MATLAB */
+        alpha_mat    = xi_alpha.coeff(i,0);
+        alpha_test   = lagsDS_test3.compute_alpha(xi_ref_test);
+        est_error_4[i] = fabs(alpha_test-alpha_mat);
+//        cout << "alpha error: " << fabs(alpha_test-alpha_mat) << endl;
+
 
     }
 
@@ -149,5 +163,6 @@ main (int argc, char **argv)
     cout << "Average Estimation Error for Global Componnet f_g(x)" << " (Norm of predicted Matlab and C++ velocities): " << est_error_1.mean() << endl;
     cout << "Average Estimation Error for Global Componnet f_g(x)" << " (Norm of predicted Matlab and C++ velocities): " << est_error_2.mean() << endl;
     cout << "Average Estimation Error for Local Componnet f_l(x)"  << " (Norm of predicted Matlab and C++ velocities): " << est_error_3.mean() << endl;
+    cout << "Average Estimation Error for Activation Function  alpha(x)"  << " (Norm of predicted Matlab and C++ velocities): " << est_error_4.mean() << endl;
     return 0;
 }

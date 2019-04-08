@@ -73,9 +73,11 @@ void GPRwrap::loadModel(string &f_GPRwrapmodel){
         arma2eigen(GPRModel_.x_train.col(i), x_train_i);
         y_train_i(0)   = GPRModel_.y_train(i);
 
-        /* Converting Training data for GPR Class */
-        // std::cout << "x_i: " << x_train_i << std::endl << "y_i:" << y_train_i << std::endl;
+        /* Converting Training data for GPR Class */        
         GPR_->AddTrainingData(x_train_i,y_train_i);
+
+        /* For Debugging */
+        // std::cout << "x_i: " << x_train_i << std::endl << "y_i:" << y_train_i << std::endl;
     }
 
 }
