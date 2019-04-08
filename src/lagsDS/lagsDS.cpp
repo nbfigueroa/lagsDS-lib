@@ -102,7 +102,9 @@ lagsDS::lagsDS(int K, int M, const MatrixXd Priors_fMatrix, const MatrixXd Mu_fM
 }
 
 
-lagsDS::lagsDS(const int K, const int M, const vector<double> Priors_vec, const vector<double> Mu_vec, const vector<double> Sigma_vec, const vector<double> Ag_vec):K_(K),M_(M){
+lagsDS::lagsDS(const int K, const int M, const vector<double> Priors_vec, const vector<double> Mu_vec, const vector<double> Sigma_vec, const vector<double> A_g_vec,
+               const vector<double> att_g_vec, const vector<double> A_l_vec, const vector<double> A_d_vec, const vector<double> att_l_vec, const vector<double> w_l_vec,
+               const vector<double> b_l_vec, const double scale, const double b_g, string& gpr_path):K_(K),M_(M),scale_(scale),b_g_(b_g){
 
 
     /* Given the parameters directly as vector<double>, initialize all matrices*/
@@ -110,7 +112,17 @@ lagsDS::lagsDS(const int K, const int M, const vector<double> Priors_vec, const 
     initialize_Priors_vec(Priors_vec);
     initialize_Mu_vec(Mu_vec);
     initialize_Sigma_vec(Sigma_vec);
-    initialize_Ag_vec(Ag_vec);
+    initialize_A_g_vec(A_g_vec);
+    initialize_att_g_vec(att_g_vec);
+    initialize_A_l_vec(A_l_vec);
+    initialize_A_d_vec(A_d_vec);
+    initialize_att_l_vec(att_l_vec);
+    initialize_w_l_vec(w_l_vec);
+    initialize_b_l_vec(b_l_vec);
+
+    cout << "Scale: " << scale_ << endl;
+    cout << "b_g: "   << b_g_ << endl;
+    alpha_GPR_->loadModel(gpr_path);
 }
 
 
@@ -536,6 +548,12 @@ void lagsDS::initialize_Priors_vec(const vector<double> Priors_vec){
 
     for (int k=0; k<K_; k++)
         Prior_[k] = Priors_vec[k];
+
+    /* For Debugging */
+//    cout << "Priors: "<< endl;
+//    for (int k=0; k<K_; k++)
+//        cout << Prior_[k] << " ";
+//    cout << endl;
 }
 
 
@@ -591,12 +609,12 @@ void lagsDS::initialize_Sigma_vec(const vector<double> Sigma_vec){
 }
 
 
-void lagsDS::initialize_Ag_vec(const vector<double> Ag_vec){
-    cout<<"** Initializing A **"<< endl;
-    if (Ag_vec.size() != K_*M_*M_){
-        cout<<"Initialization of A-matrices is wrong."<<endl;
+void lagsDS::initialize_A_g_vec(const vector<double> A_g_vec){
+    cout<<"** Initializing A_g **"<< endl;
+    if (A_g_vec.size() != K_*M_*M_){
+        cout<<"Initialization of A_g-matrices is wrong."<<endl;
         cout<<"Size of vector should be K ("<<K_ << ")*M("<< M_<< ")*M(" << M_<< ") =" << K_*M_*M_ <<endl;
-        cout<<"Given vector is of size "<< Ag_vec.size() << endl;
+        cout<<"Given vector is of size "<< A_g_vec.size() << endl;
         ERROR();
     }
 
@@ -605,7 +623,7 @@ void lagsDS::initialize_Ag_vec(const vector<double> Ag_vec){
         for (int row = 0; row < M_; row++) {
             for (int col = 0; col < M_; col++) {
                 int ind = k * M_ * M_ + row * M_ + col;
-                A_k(col,row)  = Ag_vec[ind];
+                A_k(col,row)  = A_g_vec[ind];
             }
         }
         A_g_matrix_[k] = A_k;
@@ -613,9 +631,146 @@ void lagsDS::initialize_Ag_vec(const vector<double> Ag_vec){
 
     /* For Debugging */
 //    for(int k=0; k<K_; k++ )
-//        cout << "A["<< k << "]"<< endl << A_g_matrix_[k] << endl;
+//        cout << "A_g["<< k << "]"<< endl << A_g_matrix_[k] << endl;
 }
 
+
+void lagsDS::initialize_att_g_vec(const vector<double> att_g_vec){
+    cout<<"** Initializing att_g **"<< endl;
+    if (att_g_vec.size() != M_){
+        cout<<"Initialization of Prior is wrong."<<endl;
+        cout<<"Number of components is: "<<M_<<endl;
+        cout<<"Dimension of states of Prior is: "<<att_g_vec.size()<<endl;
+        ERROR();
+    }
+
+    for (int i=0; i<M_; i++)
+        att_g_[i] = att_g_vec[i];
+
+//    /* For Debugging */
+//    cout << "att_g:"<< endl << att_g_ << endl;
+}
+
+
+void lagsDS::initialize_A_l_vec(const vector<double> A_l_vec){
+    cout<<"** Initializing A_l **"<< endl;
+    if (A_l_vec.size() != K_*M_*M_){
+        cout<<"Initialization of A_l-matrices is wrong."<<endl;
+        cout<<"Size of vector should be K ("<<K_ << ")*M("<< M_<< ")*M(" << M_<< ") =" << K_*M_*M_ <<endl;
+        cout<<"Given vector is of size "<< A_l_vec.size() << endl;
+        ERROR();
+    }
+
+    for(int k=0; k<K_; k++ ){
+        MatrixXd A_k; A_k.resize(M_,M_); A_k.setZero();
+        for (int row = 0; row < M_; row++) {
+            for (int col = 0; col < M_; col++) {
+                int ind = k * M_ * M_ + row * M_ + col;
+                A_k(col,row)  = A_l_vec[ind];
+            }
+        }
+        A_l_matrix_[k] = A_k;
+    }
+
+    /* For Debugging */
+//    for(int k=0; k<K_; k++ )
+//        cout << "A_l["<< k << "]"<< endl << A_l_matrix_[k] << endl;
+}
+
+
+
+void lagsDS::initialize_A_d_vec(const vector<double> A_d_vec){
+    cout<<"** Initializing A_d **"<< endl;
+    if (A_d_vec.size() != K_*M_*M_){
+        cout<<"Initialization of A_d-matrices is wrong."<<endl;
+        cout<<"Size of vector should be K ("<<K_ << ")*M("<< M_<< ")*M(" << M_<< ") =" << K_*M_*M_ <<endl;
+        cout<<"Given vector is of size "<< A_d_vec.size() << endl;
+        ERROR();
+    }
+
+    for(int k=0; k<K_; k++ ){
+        MatrixXd A_k; A_k.resize(M_,M_); A_k.setZero();
+        for (int row = 0; row < M_; row++) {
+            for (int col = 0; col < M_; col++) {
+                int ind = k * M_ * M_ + row * M_ + col;
+                A_k(col,row)  = A_d_vec[ind];
+            }
+        }
+        A_d_matrix_[k] = A_k;
+    }
+
+    /* For Debugging */
+//    for(int k=0; k<K_; k++ )
+//        cout << "A_d["<< k << "]"<< endl << A_d_matrix_[k] << endl;
+}
+
+
+void lagsDS::initialize_att_l_vec(const vector<double> att_l_vec){
+
+    cout<<"** Initializing att_l **"<< endl;
+    if (att_l_vec.size() != K_*M_){
+        cout<<"Initialization of att_l is wrong."<<endl;
+        cout<<"Size of vector should be K ("<<K_ << ")*M("<< M_<< ") =" << K_*M_ <<endl;
+        cout<<"Given vector is of size "<< att_l_vec.size() << endl;
+        ERROR();
+    }
+
+
+    for(int k=0; k<K_; k++ ){
+        VectorXd att_l_k; att_l_k.resize(M_); att_l_k.setZero();
+        for (int m = 0; m < M_; m++)
+            att_l_k[m] = att_l_vec[k * M_ + m];
+        att_l_[k]=att_l_k;
+    }
+
+    /* For Debugging */
+//    for(int k=0; k<K_; k++ )
+//        cout << "att_l["<< k << "]"<< endl << att_l_[k] << endl;
+}
+
+
+void lagsDS::initialize_w_l_vec(const vector<double> w_l_vec){
+
+    cout<<"** Initializing w_l **"<< endl;
+    if (w_l_vec.size() != K_*M_){
+        cout<<"Initialization of w_l is wrong."<<endl;
+        cout<<"Size of vector should be K ("<<K_ << ")*M("<< M_<< ") =" << K_*M_ <<endl;
+        cout<<"Given vector is of size "<< w_l_vec.size() << endl;
+        ERROR();
+    }
+
+
+    for(int k=0; k<K_; k++ ){
+        VectorXd w_l_k; w_l_k.resize(M_); w_l_k.setZero();
+        for (int m = 0; m < M_; m++)
+            w_l_k[m] = w_l_vec[k * M_ + m];
+        w_l_[k]=w_l_k;
+    }
+
+    /* For Debugging */
+//    for(int k=0; k<K_; k++ )
+//        cout << "w_l["<< k << "]"<< endl << w_l_[k] << endl;
+}
+
+
+void lagsDS::initialize_b_l_vec(const vector<double> b_l_vec){
+    cout<<"** Initializing b_l **"<< endl;
+    if (b_l_vec.size() != K_){
+        cout<<"Initialization of b_l is wrong."<<endl;
+        cout<<"Number of components is: "<<K_<<endl;
+        cout<<"Dimension of states of b_l is: "<<b_l_vec.size()<<endl;
+        ERROR();
+    }
+
+    for (int k=0; k<K_; k++)
+        b_l_[k] = b_l_vec[k];
+
+    /* For Debugging */
+//    cout << "b_l: "<< endl;
+//    for (int k=0; k<K_; k++)
+//        cout << b_l_[k] << " ";
+//    cout << endl;
+}
 
 
 

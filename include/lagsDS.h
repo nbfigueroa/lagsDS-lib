@@ -72,7 +72,9 @@ public:
                const MatrixXd wl_fMatrix, const MatrixXd bl_fMatrix, const MatrixXd scale_fMatrix, const char *path_gpr, const MatrixXd bg_fMatrix);
 
         /* For YAML/ROS Interface */
-        lagsDS(const int K, const int M, const vector<double> Priors_vec, const vector<double> Mu_vec, const vector<double> Sigma_vec, const vector<double> Ag_vec);
+        lagsDS(const int K, const int M, const vector<double> Priors_vec, const vector<double> Mu_vec, const vector<double> Sigma_vec,
+               const vector<double> A_g_vec, const vector<double> att_g_vec, const vector<double> A_l_vec,const vector<double> A_d_vec,
+               const vector<double> att_l_vec, const vector<double> w_l_vec, const vector<double> b_l_vec, const double scale, const double b_g, string& gpr_path);
         ~lagsDS(void);
 
         /*Initialization of Global Components */
@@ -125,7 +127,13 @@ private:
         void        initialize_Priors_vec(const vector<double> Priors_vec);
         void        initialize_Mu_vec(const vector<double> Mu_vec);
         void        initialize_Sigma_vec(const vector<double> Sigma_vec);
-        void        initialize_Ag_vec(const vector<double> A_vec);
+        void        initialize_A_g_vec(const vector<double> A_g_vec);
+        void        initialize_att_g_vec(const vector<double> att_g_vec);
+        void        initialize_A_l_vec(const vector<double> A_l_vec);
+        void        initialize_A_d_vec(const vector<double> A_d_vec);
+        void        initialize_att_l_vec(const vector<double> att_l_vec);
+        void        initialize_w_l_vec(const vector<double> w_l_vec);
+        void        initialize_b_l_vec(const vector<double> b_l_vec);
 
         /* Private Computations (for gaussian and local components) */
         VectorXd    compute_flk(VectorXd xi, int k);

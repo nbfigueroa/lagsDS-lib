@@ -99,11 +99,9 @@ main (int argc, char **argv)
 
     cout << "*********** Testing Class Wrapper with Loaded Model/Test-Data ***********" << endl;
     /* Start testing my class wrapper */
-    string model_fileName = "/home/nbfigueroa/Dropbox/PhD_papers/LAGS-paper/new-code/lagsDS-opt/models/GPR-Models/iCub-Narrow-Passage_model.txt";
-    string data_fileName = "/home/nbfigueroa/Dropbox/PhD_papers/LAGS-paper/new-code/lagsDS-opt/models/GPR-Models/iCub-Narrow-Passage_data.txt";
+    string model_fileName = "/home/nbfigueroa/Dropbox/PhD_papers/LAGS-paper/new-code/lagsDS-opt/models/iCub-Narrow-Passage-LAGS/GPR_model.txt";
+    string data_fileName = "/home/nbfigueroa/Dropbox/PhD_papers/LAGS-paper/new-code/lagsDS-opt/models/iCub-Narrow-Passage-LAGS/GPR_data.txt";
 
-//    string model_fileName = "/home/nbfigueroa/Dropbox/PhD_papers/LAGS-paper/new-code/lagsDS-opt/models/GPR-Models/Slide-simulation_model.txt";
-//    string data_fileName = "/home/nbfigueroa/Dropbox/PhD_papers/LAGS-paper/new-code/lagsDS-opt/models/GPR-Models/Slide-simulation_data.txt";
 
     /* Instatiate Class and Load Model Parameters */
     GPRwrap gpr_(model_fileName);

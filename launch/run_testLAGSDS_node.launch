@@ -1,7 +1,11 @@
 <?xml version="1.0" ?>
 <launch>
+	<arg name="models_dir"        value="/home/nbfigueroa/Dropbox/PhD_papers/LAGS-paper/new-code/lagsDS-opt/models/" />
 	<node name="test_lagsDS_node" pkg="lagsDS" type="test_lagsDS_node" output="screen">
-		<param name="model_path"                  value="$(find lagsDS)/models/coManip-DS-0/"/>
-		<rosparam command="load" file="$(find lagsDS)/models/coManip-DS-0.yml"/>
+		<param name="model_path"     value="$(arg models_dir)iCub-Narrow-Passage-LAGS/"/>
+		<rosparam command="load"     file="$(arg models_dir)iCub-Narrow-Passage-LAGS.yml"/>
+		
+		<!-- <param name="model_path"     value="$(arg models_dir)iCub-Object-Conveyor-LAGS/"/> -->
+		<!-- <rosparam command="load"     file="$(arg models_dir)iCub-Object-Conveyor-LAGS.yml"/> -->
 	</node>
 </launch>
