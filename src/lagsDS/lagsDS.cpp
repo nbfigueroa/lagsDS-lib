@@ -42,7 +42,7 @@ lagsDS::lagsDS(const char  *path_dims):K_(0),M_(0) {
 }
 
 
-lagsDS::lagsDS(const char  *path_dims, const char  *path_prior_,const char  *path_mu_,const char  *path_sigma_, const char  *path_A_):K_(0),M_(0) {
+lagsDS::lagsDS(const char  *path_dims, const char  *path_prior_,const char  *path_mu_,const char  *path_sigma_, const char  *path_Ag_, const char *path_Al_, const char *path_Ad_, const char *path_att_l_, const char *path_w_l_, const char *path_b_l_, const char *path_scale_):K_(0),M_(0) {
 
     /* Declare the number of the components
      * and the dimension  of the state  */
@@ -63,23 +63,34 @@ lagsDS::lagsDS(const char  *path_dims, const char  *path_prior_,const char  *pat
     M_ = (int)fMatrix.coeff(1,0);
     setup_params();
     initialize_gamma(path_prior_, path_mu_, path_sigma_);
-    initialize_A(path_A_);
+    initialize_Ag(path_Ag_);
+    initialize_Al(path_Al_);
+    initialize_Ad(path_Ad_);
+    initialize_local_params(path_att_l_, path_w_l_, path_b_l_, path_scale_);
+
 }
 
 
-lagsDS::lagsDS(int K, int M, const MatrixXd Priors_fMatrix, const MatrixXd Mu_fMatrix, const MatrixXd Sigma_fMatrix, const MatrixXd A_fMatrix ):K_(K),M_(M) {
+lagsDS::lagsDS(int K, int M, const MatrixXd Priors_fMatrix, const MatrixXd Mu_fMatrix, const MatrixXd Sigma_fMatrix, const MatrixXd Ag_fMatrix, const MatrixXd Al_fMatrix, const MatrixXd Ad_fMatrix, const MatrixXd attl_fMatrix, const MatrixXd wl_fMatrix, const MatrixXd bl_fMatrix, const MatrixXd scale_fMatrix):K_(K),M_(M) {
 
     /* Given the parameters directly as MatrixXd, initialize all matrices*/
     setup_params();
     initialize_Priors(Priors_fMatrix);
     initialize_Mu(Mu_fMatrix);
     initialize_Sigma(Sigma_fMatrix);
-    initialize_A(A_fMatrix);
+    initialize_Ag(Ag_fMatrix);
+    initialize_Al(Al_fMatrix);
+    initialize_Ad(Ad_fMatrix);
+    initialize_att_l(attl_fMatrix);
+    initialize_w_l(wl_fMatrix);
+    initialize_b_l(bl_fMatrix);
 
+    cout<<"** Initializing scale **"<< endl;
+    scale_ = scale_fMatrix.coeff(0,0);
 }
 
 
-lagsDS::lagsDS(const int K, const int M, const vector<double> Priors_vec, const vector<double> Mu_vec, const vector<double> Sigma_vec, const vector<double> A_vec):K_(K),M_(M){
+lagsDS::lagsDS(const int K, const int M, const vector<double> Priors_vec, const vector<double> Mu_vec, const vector<double> Sigma_vec, const vector<double> Ag_vec):K_(K),M_(M){
 
 
     /* Given the parameters directly as vector<double>, initialize all matrices*/
@@ -87,7 +98,7 @@ lagsDS::lagsDS(const int K, const int M, const vector<double> Priors_vec, const 
     initialize_Priors_vec(Priors_vec);
     initialize_Mu_vec(Mu_vec);
     initialize_Sigma_vec(Sigma_vec);
-    initialize_A_vec(A_vec);
+    initialize_Ag_vec(Ag_vec);
 }
 
 
@@ -106,15 +117,28 @@ void lagsDS::ERROR()
 void lagsDS::setup_params()
 {
 
-    /* Setup matrices */
-    A_Matrix_ = new MatrixXd[K_]; for(int s=0; s<K_; s++ ){A_Matrix_[s].resize(M_,M_);}
-    Prior_    = new double[K_];
-    Mu_       = new VectorXd[K_]; for(int s=0; s<K_; s++ ){	Mu_[s].resize(M_);	}
-    Sigma_    = new MatrixXd[K_]; for(int s=0; s<K_; s++ ){	Sigma_[s].resize(M_,M_);	}
+    /* Setup matrices for Global Component */
+    A_g_matrix_ = new MatrixXd[K_]; for(int s=0; s<K_; s++ ){A_g_matrix_[s].resize(M_,M_);}
+    Prior_      = new double[K_];
+    Mu_         = new VectorXd[K_]; for(int s=0; s<K_; s++ ){	Mu_[s].resize(M_);	}
+    Sigma_      = new MatrixXd[K_]; for(int s=0; s<K_; s++ ){	Sigma_[s].resize(M_,M_);	}
+
+    att_g_.resize(M_);
+    att_g_.setZero();
 
     gamma_.resize(K_);
     gamma_.setZero();
-    cout << "Initialized an M:" << M_ << " dimensional GMM-based LPV-DS with K: " << K_ << " Components" << endl;
+
+    /* Setup matrices for Local Component */
+    A_l_matrix_ = new MatrixXd[K_]; for(int s=0; s<K_; s++ ){A_l_matrix_[s].resize(M_,M_);}
+    A_d_matrix_ = new MatrixXd[K_]; for(int s=0; s<K_; s++ ){A_d_matrix_[s].resize(M_,M_);}
+    att_l_      = new VectorXd[K_]; for(int s=0; s<K_; s++ ){att_l_[s].resize(M_);	}
+    w_l_        = new VectorXd[K_]; for(int s=0; s<K_; s++ ){w_l_[s].resize(M_);	}
+    b_l_        = new double[K_];
+
+    cout << "Initialized an M:" << M_ << " dimensional LAGS-DS with K: " << K_ << " Global Components" << endl;
+    cout << "Initialized an M:" << M_ << " dimensional LAGS-DS with K: " << K_ << " Locally-Active Components" << endl;
+    cout << "Initialized an M:" << M_ << " dimensional LAGS-DS with K: " << K_ << " Locally-Deflective Components" << endl;
 }
 
 
@@ -175,14 +199,13 @@ void lagsDS::initialize_Sigma(const MatrixXd fMatrix ){
     }
 }
 
-void lagsDS::initialize_A(const MatrixXd fMatrix ){
+void lagsDS::initialize_Ag(const MatrixXd fMatrix ){
 
-
-    cout<<"** Initializing A's' **"<< endl;
+    cout<<"** Initializing A_g's' **"<< endl;
     if ((fMatrix.rows()!=K_*M_)||(fMatrix.cols()!=M_))
     {
-        cout<<"Initialization of the A matrices is wrong!!"<<endl;
-        cout<<"A_k: "<< endl << fMatrix<< endl;
+        cout<<"Initialization of the A_g matrices is wrong!!"<<endl;
+        cout<<"Ag_k: "<< endl << fMatrix<< endl;
         cout<<"[Proposed Dimensionality] K : "<<K_<<" M:"<<M_<<endl;
         cout<<"[Actual Dimensionality] K : "<< fMatrix.cols()/M_ <<" M:" << fMatrix.rows() << endl;
         ERROR();
@@ -190,10 +213,99 @@ void lagsDS::initialize_A(const MatrixXd fMatrix ){
     int j = 0;
     for(int s=0; s<K_; s++ ){
         for(int i=0; i<M_; i++ ){
-            A_Matrix_[s].row(i)=fMatrix.row(j);
+            A_g_matrix_[s].row(i)=fMatrix.row(j);
             j++;
         }
     }
+}
+
+void lagsDS::initialize_Al(const MatrixXd fMatrix ){
+
+    cout<<"** Initializing A_l's' **"<< endl;
+    if ((fMatrix.rows()!=K_*M_)||(fMatrix.cols()!=M_))
+    {
+        cout<<"Initialization of the A_l matrices is wrong!!"<<endl;
+        cout<<"Al_k: "<< endl << fMatrix<< endl;
+        cout<<"[Proposed Dimensionality] K : "<<K_<<" M:"<<M_<<endl;
+        cout<<"[Actual Dimensionality] K : "<< fMatrix.cols()/M_ <<" M:" << fMatrix.rows() << endl;
+        ERROR();
+    }
+    int j = 0;
+    for(int s=0; s<K_; s++ ){
+        for(int i=0; i<M_; i++ ){
+            A_l_matrix_[s].row(i)=fMatrix.row(j);
+            j++;
+        }
+    }
+}
+
+
+void lagsDS::initialize_Ad(const MatrixXd fMatrix ){
+
+    cout<<"** Initializing A_d's' **"<< endl;
+    if ((fMatrix.rows()!=K_*M_)||(fMatrix.cols()!=M_))
+    {
+        cout<<"Initialization of the A_d matrices is wrong!!"<<endl;
+        cout<<"Ad_k: "<< endl << fMatrix<< endl;
+        cout<<"[Proposed Dimensionality] K : "<<K_<<" M:"<<M_<<endl;
+        cout<<"[Actual Dimensionality] K : "<< fMatrix.cols()/M_ <<" M:" << fMatrix.rows() << endl;
+        ERROR();
+    }
+    int j = 0;
+    for(int s=0; s<K_; s++ ){
+        for(int i=0; i<M_; i++ ){
+            A_d_matrix_[s].row(i)=fMatrix.row(j);
+            j++;
+        }
+    }
+}
+
+
+void lagsDS::initialize_att_l(const MatrixXd fMatrix ){
+
+    cout<<"** Initializing att_l **"<< endl;
+    if ((fMatrix.cols()!=K_)||(fMatrix.rows()!=M_)){
+        cout<<"Initialization of Local Virtual Attractors is wrong."<<endl;
+        cout<<"Number of components is: "<<K_<<endl;
+        cout<<"Dimension of states is: "<<M_<<endl;
+        cout<<"Dimension of states of attractors is: "<<fMatrix.rows()<<"*"<<fMatrix.cols()<<endl;
+        ERROR();
+    }
+
+    for(int s=0; s<K_; s++ )
+        att_l_[s]=fMatrix.col(s);
+}
+
+
+void lagsDS::initialize_w_l(const MatrixXd fMatrix ){
+
+    cout<<"** Initializing w_l **"<< endl;
+    if ((fMatrix.cols()!=K_)||(fMatrix.rows()!=M_)){
+        cout<<"Initialization of Local w vectors is wrong."<<endl;
+        cout<<"Number of components is: "<<K_<<endl;
+        cout<<"Dimension of states is: "<<M_<<endl;
+        cout<<"Dimension of states of attractors is: "<<fMatrix.rows()<<"*"<<fMatrix.cols()<<endl;
+        ERROR();
+    }
+
+    for(int s=0; s<K_; s++ )
+        w_l_[s]=fMatrix.col(s);
+}
+
+
+void lagsDS::initialize_b_l(const MatrixXd fMatrix ){
+
+    cout<<"** Initializing b_l **"<< endl;
+    if ((fMatrix.cols()!=K_)||(fMatrix.rows()!=1))
+    {
+        cout<<"Initialization of b_l is wrong."<<endl;
+        cout<<"Number of components is: "<<K_<<endl;
+        cout<<"Dimension of states of b_l is: "<<fMatrix.cols()<<endl;
+        ERROR();
+    }
+
+    for (int i=0; i<K_; i++)
+        b_l_[i]=fMatrix(0,i);
 }
 
 /*********************************************************/
@@ -266,12 +378,12 @@ void lagsDS::initialize_Sigma_vec(const vector<double> Sigma_vec){
 }
 
 
-void lagsDS::initialize_A_vec(const vector<double> A_vec){
+void lagsDS::initialize_Ag_vec(const vector<double> Ag_vec){
     cout<<"** Initializing A **"<< endl;
-    if (A_vec.size() != K_*M_*M_){
+    if (Ag_vec.size() != K_*M_*M_){
         cout<<"Initialization of A-matrices is wrong."<<endl;
         cout<<"Size of vector should be K ("<<K_ << ")*M("<< M_<< ")*M(" << M_<< ") =" << K_*M_*M_ <<endl;
-        cout<<"Given vector is of size "<< A_vec.size() << endl;
+        cout<<"Given vector is of size "<< Ag_vec.size() << endl;
         ERROR();
     }
 
@@ -280,16 +392,15 @@ void lagsDS::initialize_A_vec(const vector<double> A_vec){
         for (int row = 0; row < M_; row++) {
             for (int col = 0; col < M_; col++) {
                 int ind = k * M_ * M_ + row * M_ + col;
-                A_k(col,row)  = A_vec[ind];
+                A_k(col,row)  = Ag_vec[ind];
             }
         }
-        A_Matrix_[k] = A_k;
+        A_g_matrix_[k] = A_k;
     }
-
 
     /* For Debugging */
 //    for(int k=0; k<K_; k++ )
-//        cout << "A["<< k << "]"<< endl << A_Matrix_[k] << endl;
+//        cout << "A["<< k << "]"<< endl << A_g_matrix_[k] << endl;
 }
 
 
@@ -298,22 +409,21 @@ void lagsDS::initialize_A_vec(const vector<double> A_vec){
 /* Initialization functions with path to text file as input */
 /************************************************************/
 
-void lagsDS::initialize_A(const char  *path_A_){
+void lagsDS::initialize_Ag(const char  *path_Ag_){
 
     /* Initialize A
-     * path_A_ is the path of A matrix*/
+     * path_Ag_ is the path of A matrix*/
 
     MatrixXd fMatrix(1,1);fMatrix.setZero();
-    if (fileUtils_.is_file_exist(path_A_))
-        fMatrix=fileUtils_.readMatrix(path_A_);
+    if (fileUtils_.is_file_exist(path_Ag_))
+        fMatrix=fileUtils_.readMatrix(path_Ag_);
     else{
-        cout<<"The provided path does not exist: "<<path_A_<<endl;
+        cout<<"The provided path does not exist: "<<path_Ag_<<endl;
         ERROR();
     }
 
-    initialize_A(fMatrix);
+    initialize_Ag(fMatrix);
 }
-
 
 void lagsDS::initialize_gamma(const char  *path_prior_,const char  *path_mu_,const char  *path_sigma_){
 
@@ -360,11 +470,119 @@ void lagsDS::initialize_gamma(const char  *path_prior_,const char  *path_mu_,con
     initialize_Sigma( fMatrix );
 }
 
+
+void lagsDS::initialize_Al(const char  *path_Al_){
+
+    /* Initialize A
+     * path_Al_ is the path of A matrix*/
+
+    MatrixXd fMatrix(1,1);fMatrix.setZero();
+    if (fileUtils_.is_file_exist(path_Al_))
+        fMatrix=fileUtils_.readMatrix(path_Al_);
+    else{
+        cout<<"The provided path does not exist: "<<path_Al_<<endl;
+        ERROR();
+    }
+
+    initialize_Al(fMatrix);
+}
+
+
+void lagsDS::initialize_Ad(const char  *path_Ad_){
+
+    /* Initialize A
+     * path_Ad_ is the path of A matrix*/
+
+    MatrixXd fMatrix(1,1);fMatrix.setZero();
+    if (fileUtils_.is_file_exist(path_Ad_))
+        fMatrix=fileUtils_.readMatrix(path_Ad_);
+    else{
+        cout<<"The provided path does not exist: "<<path_Ad_<<endl;
+        ERROR();
+    }
+
+    initialize_Ad(fMatrix);
+}
+
+
+void lagsDS::initialize_local_params(const char  *path_att_l_, const char  *path_w_l_, const char  *path_b_l_, const char  *path_scale_){
+
+    /* Initialize local attractors and activation function parameters
+     *	path_att_l_ is the path of the local virtual attractors
+     *	path_w_l_ is the path of the local w vectors for hyper-plane functions
+     *  path_b_l_ is the path of the params for lambda functions
+     *  path_scale_ is the path of the scaling parameter used during estimation
+    */
+
+
+    /* Initializing att_l*/
+    MatrixXd fMatrix;
+    fMatrix.setZero();
+    if (fileUtils_.is_file_exist(path_att_l_))
+        fMatrix=fileUtils_.readMatrix(path_att_l_);
+    else{
+        cout<<"The provided path does not exist."<<endl;
+        cout<<"path_att_l "<<endl;
+        cout<<path_att_l_<<endl;
+        ERROR();
+    }
+    initialize_att_l(fMatrix);
+
+
+    /* Initializing w_l*/
+    fMatrix.setZero();
+    if (fileUtils_.is_file_exist(path_w_l_))
+        fMatrix=fileUtils_.readMatrix(path_w_l_);
+    else{
+        cout<<"The provided path does not exist."<<endl;
+        cout<<"path_w_l "<<endl;
+        cout<<path_w_l_<<endl;
+        ERROR();
+    }
+    initialize_w_l(fMatrix);
+
+
+    /* Initializing b_l*/
+    fMatrix.setZero();
+    if (fileUtils_.is_file_exist(path_b_l_))
+        fMatrix=fileUtils_.readMatrix(path_b_l_);
+    else{
+        cout<<"The provided path does not exist."<<endl;
+        cout<<"path_b_l "<<endl;
+        cout<<path_b_l_<<endl;
+        ERROR();
+    }
+    initialize_b_l(fMatrix);
+
+
+    /* Initializing scale*/
+    fMatrix.setZero();
+    if (fileUtils_.is_file_exist(path_scale_))
+        fMatrix=fileUtils_.readMatrix(path_scale_);
+    else{
+        cout<<"The provided path for scale does not exist:"<< path_scale_ << endl;
+        ERROR();
+    }
+    if ((fMatrix.rows()!=1)){
+        cout<<"Initialization of scale is wrong."<<endl;
+        ERROR();
+    }
+
+    cout<<"** Initializing scale **"<< endl;
+    scale_ = fMatrix.coeff(0,0);
+
+}
+
+
+
 /****************************************/
 /*     Actual computation functions     */
 /****************************************/
 
-MatrixXd lagsDS::compute_A(VectorXd X){
+/***************************************************/
+/******** Computations for Global Component ********/
+/***************************************************/
+MatrixXd lagsDS::compute_Ag(VectorXd X){
 
     /* Calculating the weighted sum of A matrices */
 
@@ -382,7 +600,7 @@ MatrixXd lagsDS::compute_A(VectorXd X){
 		gamma_(K_-1)=1;
 
 	for (int i=0;i<K_;i++)
-        A = A + A_Matrix_[i]*gamma_(i);
+        A = A + A_g_matrix_[i]*gamma_(i);
 
 	return A;
 }
@@ -406,18 +624,24 @@ VectorXd lagsDS::compute_gamma(VectorXd X){
     return gamma;
 }
 
-VectorXd   lagsDS::compute_f(VectorXd xi, VectorXd att){
+VectorXd   lagsDS::compute_fg(VectorXd xi, VectorXd att){
     MatrixXd A_matrix; A_matrix.resize(M_,M_); A_matrix.setZero();
     VectorXd xi_dot;     xi_dot.resize(M_);    xi_dot.setZero();
 
-    A_matrix = compute_A(xi);
+    A_matrix = compute_Ag(xi);
     xi_dot = A_matrix*(xi - att);
 
     return xi_dot;
 }
 
 
-MathLib::Vector lagsDS::compute_f(MathLib::Vector xi, MathLib::Vector att){
+void lagsDS::set_att_g(VectorXd att_g){
+    att_g_ = att_g;
+
+    cout << "Global attractor set:" << endl << att_g_ << endl;
+}
+
+MathLib::Vector lagsDS::compute_fg(MathLib::Vector xi, MathLib::Vector att){
 
     /* Check size of input vectors */
 
@@ -444,12 +668,103 @@ MathLib::Vector lagsDS::compute_f(MathLib::Vector xi, MathLib::Vector att){
 
     /* Compute Desired Velocity */
     VectorXd xi_dot_;  xi_dot_.resize(M_);    xi_dot_.setZero();
-    xi_dot_ = compute_f(xi_,att_);
+    xi_dot_ = compute_fg(xi_,att_);
 
     /* Transform Desired Velocity to MathLib form */
     MathLib::Vector xi_dot; xi_dot.Resize(M_);
     for (int m=0;m<M_;m++)
         xi_dot[m] = xi_dot_[m];
+
+    return xi_dot;
+}
+
+
+/***************************************************/
+/******** Computations for Local Component *********/
+/***************************************************/
+
+double lagsDS::compute_hk(VectorXd xi, int k){
+
+    /* Calculating each hyper-plane function h_k(x) */
+    double h, h_tilde, bias;
+    bias    = 1 - w_l_[k].transpose()*att_l_[k];
+    h       = w_l_[k].transpose()*xi + bias;
+    h_tilde = 0.5 * (h + abs(h));
+
+    return h_tilde;
+}
+
+
+VectorXd lagsDS::compute_grad_hk(VectorXd xi, int k){
+
+    /* Calculating the gradient of each hyper-plane function h_k(x) */
+    VectorXd grad_h;  grad_h.resize(M_);  grad_h.setZero();
+
+    double h = compute_hk(xi, k);
+    if (h > 0.5)
+         grad_h = w_l_[k];
+
+    return grad_h;
+}
+
+
+double lagsDS::compute_lambda_k(VectorXd xi, int k){
+
+    /* Calculating each hyper-plane function h_k(x) */
+    double lambda(0.0) ;
+    lambda = 1 - compute_rbf(b_l_[k], xi, att_l_[k]);
+    return lambda;
+
+}
+
+
+VectorXd lagsDS::compute_flk(VectorXd xi, int k){
+
+    /* Calculating each locally active component f_l^k(x) */
+    VectorXd xi_dot;  xi_dot.resize(M_);  xi_dot.setZero();
+    VectorXd att_diff;  att_diff.resize(M_);  att_diff.setZero();
+
+    /* Compute value of local hyper-plane function */
+    double hk = compute_hk(xi, k);
+    double h_set(1.0), corr_scale(0.0), d_att_g(0.0);
+    att_diff = att_l_[k] - att_g_;
+    d_att_g = att_diff.norm();
+
+    /* Compute values of h_set and corr_scale */
+
+    if (hk > 1.0)
+        hk = 1.0;
+    else
+        hk = hk*h_set;
+
+    /* No local deflective DS necessary */
+    if (d_att_g < 0.1)
+        xi_dot = hk*(A_l_matrix_[k])*(xi - att_l_[k]);
+    else{
+        /* Compute full local Dynamics Components */
+        xi_dot = (hk*A_l_matrix_[k] + (1-hk)*A_d_matrix_[k])*(xi - att_l_[k]);
+
+        /* Sum of components + modulation/correction */
+        xi_dot = xi_dot - corr_scale*compute_lambda_k(xi,k)*compute_grad_hk(xi,k);
+    }
+
+    return xi_dot;
+
+}
+
+
+VectorXd   lagsDS::compute_fl(VectorXd xi){
+
+    /* Calculating the weighted sum of local components f_l(x) = sum f_l^k(x) */
+    VectorXd xi_dot;     xi_dot.resize(M_);    xi_dot.setZero();
+
+    if (K_>1)
+        gamma_= compute_gamma(xi);
+    else
+        gamma_(K_-1)=1;
+
+    for (int k=0;k<K_;k++)
+        xi_dot = xi_dot + gamma_(k)*compute_flk(xi, k);
 
     return xi_dot;
 }
@@ -478,6 +793,15 @@ double lagsDS::GaussianPDF(VectorXd x, VectorXd Mu, MatrixXd Sigma){
 	p = exp(-gfDiffp(0,0)) / sqrt(pow(2.0*PI_, M_)*( detSigmaII +1e-50));
 
     return p;
+}
+
+double lagsDS::compute_rbf(double b_r, VectorXd xi, VectorXd center){
+    double r;
+    VectorXd xiDiff(M_);
+    xiDiff = xi - center;
+//    r = 1 - exp(-b*xiDiff.norm());
+    r = 1 - exp(-b_r* xiDiff.squaredNorm());
+    return r;
 }
 
 

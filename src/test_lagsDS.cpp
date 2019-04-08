@@ -29,45 +29,65 @@ using namespace std;
 int
 main (int argc, char **argv)
 {
-    string path_model  = "/home/nbfigueroa/proj/catkin_ws_icub/src/lagsDS-lib/models/coManip-DS-0/";
-    string path_dim    = path_model +  "dimensions";
-    string path_Priors = path_model +  "Priors";
-    string path_Mu     = path_model +  "Mu";
-    string path_Sigma  = path_model +  "Sigma";
-    string path_A      = path_model +  "A_k";
+    string path_model  = "/home/nbfigueroa/Dropbox/PhD_papers/LAGS-paper/new-code/lagsDS-opt/models/iCub-Narrow-Passage-LAGS/";
+    string path_dim      = path_model +  "dimensions";
+    string path_Priors   = path_model +  "Priors";
+    string path_Mu       = path_model +  "Mu";
+    string path_Sigma    = path_model +  "Sigma";
+    string path_Ag       = path_model +  "A_g";
+    string path_Al       = path_model +  "A_l";
+    string path_Ad       = path_model +  "A_d";
+    string path_att_g    = path_model +  "att_g";
+    string path_att_l    = path_model +  "att_l";
+    string path_w_l      = path_model +  "w_l";
+    string path_b_l      = path_model +  "b_l";
+    string path_scale    = path_model +  "scale";
 
-    /* Instantiate an LPV-DS class Option 1 */
+    /* Instantiate an LAGS-DS class Option 1 */
     cout << "Initialization Test 1: " << endl;
     lagsDS lagsDS_test1(path_dim.c_str());
     lagsDS_test1.initialize_gamma(path_Priors.c_str(), path_Mu.c_str(), path_Sigma.c_str());
-    lagsDS_test1.initialize_A(path_A.c_str());
+    lagsDS_test1.initialize_Ag(path_Ag.c_str());
+    lagsDS_test1.initialize_Al(path_Al.c_str());
+    lagsDS_test1.initialize_Ad(path_Ad.c_str());
+    lagsDS_test1.initialize_local_params(path_att_l.c_str(), path_w_l.c_str(), path_b_l.c_str(), path_scale.c_str());
 
-    /* Instantiate an LPV-DS class Option 2 */
-    cout << "Initialization Test 2: " << endl;
-    lagsDS lagsDS_test2 (path_dim.c_str(), path_Priors.c_str(), path_Mu.c_str(), path_Sigma.c_str(), path_A.c_str());
+    /* Instantiate an LAGS-DS class Option 2 */
+    cout << endl <<"Initialization Test 2: " << endl;
+    lagsDS lagsDS_test2 (path_dim.c_str(), path_Priors.c_str(), path_Mu.c_str(), path_Sigma.c_str(), path_Ag.c_str(), path_Al.c_str(), path_Ad.c_str(), path_att_l.c_str(),path_w_l.c_str(), path_b_l.c_str(), path_scale.c_str());
 
-    /* Instantiate an LPV-DS class Option 3 */
-    cout << "Initialization Test 3: " << endl;
+
+    /* Instantiate an LAGS-DS class Option 3 */
+    cout << endl << "Initialization Test 3: " << endl;
     fileUtils fileUtils_;
-    MatrixXd dim, Priors, Mu, Sigma, A;
+    MatrixXd dim, Priors, Mu, Sigma, Ag, Al, Ad, att_l, w_l, b_l, scale;
     dim     = fileUtils_.readMatrix(path_dim.c_str());
     Priors  = fileUtils_.readMatrix(path_Priors.c_str());
     Mu      = fileUtils_.readMatrix(path_Mu.c_str());
     Sigma   = fileUtils_.readMatrix(path_Sigma.c_str());
-    A       = fileUtils_.readMatrix(path_A.c_str());
+    Ag      = fileUtils_.readMatrix(path_Ag.c_str());
+    Al      = fileUtils_.readMatrix(path_Al.c_str());
+    Ad      = fileUtils_.readMatrix(path_Ad.c_str());
+    att_l   = fileUtils_.readMatrix(path_att_l.c_str());
+    w_l     = fileUtils_.readMatrix(path_w_l.c_str());
+    b_l     = fileUtils_.readMatrix(path_b_l.c_str());
+    scale   = fileUtils_.readMatrix(path_scale.c_str());
     int K = (int)dim(0,0);
     int M = (int)dim(1,0);
-    lagsDS lagsDS_test3 (K, M, Priors, Mu, Sigma, A);
+    lagsDS lagsDS_test3 (K, M, Priors, Mu, Sigma, Ag, Al, Ad, att_l, w_l, b_l, scale);
 
-    /* Testing the LPV-DS on training data from MATLAB */
-    cout << "Testing Accuracy of model..." << endl;
-    string path_att    = path_model +  "attractor";
-    string path_data   = path_model +  "Data";
-    string path_xi_dot = path_model +  "xi_dot";
-    MatrixXd attractor, Data, xi_dot;
-    attractor = fileUtils_.readMatrix(path_att.c_str());
+
+    /* Testing the LAGS-DS on training data from MATLAB */
+    cout << endl << "Testing Accuracy of model..." << endl;
+    string path_data     = path_model +  "Data";
+    string path_xi_dot_g = path_model +  "xi_dot_g";
+    string path_xi_dot_l = path_model +  "xi_dot_l";
+    MatrixXd attractor, Data, xi_dot_g, xi_dot_l;
+
+    attractor = fileUtils_.readMatrix(path_att_g.c_str());
     Data      = fileUtils_.readMatrix(path_data.c_str());
-    xi_dot    = fileUtils_.readMatrix(path_xi_dot.c_str());
+    xi_dot_g  = fileUtils_.readMatrix(path_xi_dot_g.c_str());
+    xi_dot_l  = fileUtils_.readMatrix(path_xi_dot_l.c_str());
     int samples = Data.cols();
 
     /* Fill in attractor */
@@ -79,29 +99,55 @@ main (int argc, char **argv)
     for (int i=0; i<M; i++)
         xi_ref.row(i) = Data.row(i);
 
-
     /* Compute estimated velocities from model */
+
+    /* For Global Component Estimates */
     VectorXd xi_ref_test;  xi_ref_test.resize(M);
     VectorXd xi_dot_test;  xi_dot_test.resize(M);
     VectorXd xi_dot_mat;   xi_dot_mat.resize(M);
+    MatrixXd A_matrix;     A_matrix.resize(M,M);
+
+    /* For Local Component Estimates */
+    VectorXd xi_dot_test_l;  xi_dot_test_l.resize(M);
+    VectorXd xi_dot_mat_l; xi_dot_mat_l.resize(M);
+
+    /* For Error Estimates */
     VectorXd xi_dot_error;  xi_dot_error.resize(M);
-    MatrixXd A_matrix; A_matrix.resize(M,M);
-    VectorXd  est_error; est_error.resize(samples);
+    VectorXd est_error_1; est_error_1.resize(samples);
+    VectorXd est_error_2; est_error_2.resize(samples);
+    VectorXd est_error_3; est_error_3.resize(samples);
+
+    lagsDS_test3.set_att_g(att);
     for (int i=0; i<samples; i++){
 
         /* Computing desired velocity */
-        xi_ref_test = xi_ref.col(i);
-        A_matrix = lagsDS_test3.compute_A(xi_ref_test);
-        xi_dot_test = A_matrix*(xi_ref_test - att);
+        xi_ref_test  = xi_ref.col(i);
+        xi_dot_mat   = xi_dot_g.col(i);
 
-        /* Computing error between this estimate and MATLAB */
-        xi_dot_mat = xi_dot.col(i);
-        xi_dot_error =  xi_dot_test-xi_dot_mat;
-        est_error[i] = xi_dot_error.norm();
+        /* Computing error between this estimate (using A-matrix) and MATLAB */
+        A_matrix       =  lagsDS_test3.compute_Ag(xi_ref_test);
+        xi_dot_test    =  A_matrix*(xi_ref_test - att);
+        xi_dot_error   =  xi_dot_test-xi_dot_mat;
+        est_error_1[i] =  xi_dot_error.norm();
+
+        /* Computing error between this estimats (using f_g) and MATLAB */
+        xi_dot_test    =  lagsDS_test3.compute_fg(xi_ref_test, att);
+        xi_dot_error   =  xi_dot_test-xi_dot_mat;
+        est_error_2[i] =  xi_dot_error.norm();
+
+
+        /* Computing error between this estimats (using f_l) and MATLAB */
+        xi_dot_mat_l   = xi_dot_l.col(i);
+        xi_dot_test_l  =  lagsDS_test3.compute_fl(xi_ref_test);
+        xi_dot_error   =  xi_dot_test_l - xi_dot_mat_l;
+        est_error_3[i] =  xi_dot_error.norm();
+//        cout << " xi_dot_l:" << endl << xi_dot_mat_l << endl << " xi_dot_l_c:" << endl  << xi_dot_test_l << endl;
 
     }
 
     /* Stats on Estimation error between MATLAB-C++ model */
-    cout << "Average Estimation Error" << " (Norm of predicted Matlab and C++ velocities): " << est_error.mean() << endl;
+    cout << "Average Estimation Error for Global Componnet f_g(x)" << " (Norm of predicted Matlab and C++ velocities): " << est_error_1.mean() << endl;
+    cout << "Average Estimation Error for Global Componnet f_g(x)" << " (Norm of predicted Matlab and C++ velocities): " << est_error_2.mean() << endl;
+    cout << "Average Estimation Error for Local Componnet f_l(x)"  << " (Norm of predicted Matlab and C++ velocities): " << est_error_3.mean() << endl;
     return 0;
 }
