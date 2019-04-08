@@ -137,11 +137,11 @@ main (int argc, char **argv)
 
 
         /* Computing error between this estimats (using f_l) and MATLAB */
-        xi_dot_mat_l   = xi_dot_l.col(i);
+        xi_dot_mat_l   =  xi_dot_l.col(i);
         xi_dot_test_l  =  lagsDS_test3.compute_fl(xi_ref_test);
         xi_dot_error   =  xi_dot_test_l - xi_dot_mat_l;
         est_error_3[i] =  xi_dot_error.norm();
-//        cout << " xi_dot_l:" << endl << xi_dot_mat_l << endl << " xi_dot_l_c:" << endl  << xi_dot_test_l << endl;
+//        cout << " fl errors:" << est_error_3[i] << endl;
 
     }
 

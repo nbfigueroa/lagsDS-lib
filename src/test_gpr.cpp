@@ -121,6 +121,9 @@ main (int argc, char **argv)
     vec             y_diff = zeros<vec>(data_.M);
     vec             y_time = zeros<vec>(data_.M);
 
+
+
+    double y_output(0.0);
     for (unsigned int  i=0;i<data_.M;i++){
         for(unsigned int d=0; d<data_.D; d++){
             x_test(d)  = data_.x(d,i);
@@ -133,9 +136,11 @@ main (int argc, char **argv)
 
         }
         t = clock() - t;
-        cout << "y_mat: " << data_.y(i) << " y_gpr:" << y_test(0) << endl;
+
+
+
         y_time(i)  = ((float)t)/CLOCKS_PER_SEC;
-        y_diff(i)  = y_test(0) - data_.y(i);
+        y_diff(i)  = fabs(data_.y(i) - y_test(0));
     }
 
     cout << "\n---Testing y regressed with Eigen Inputs---\n";
@@ -145,3 +150,10 @@ main (int argc, char **argv)
          << sum(y_time)/(double)data_.M << endl;
     return 0;
 }
+
+/* To write shit to file */
+//    ofstream myfile;
+//    myfile.open ("gpr_test_results.txt");
+//    myfile << data_.y(i) << " " << y_test(0) << endl;
+//    myfile.close();
+

@@ -594,11 +594,10 @@ MatrixXd lagsDS::compute_Ag(VectorXd X){
 	}
 
 	MatrixXd A; A.resize(M_,M_);A.setZero();
-	if (K_>1)
+    if (K_>1)
         gamma_= compute_gamma(X);
-	else
-		gamma_(K_-1)=1;
-
+    else
+        gamma_(K_-1)=1;
 	for (int i=0;i<K_;i++)
         A = A + A_g_matrix_[i]*gamma_(i);
 
@@ -611,14 +610,14 @@ VectorXd lagsDS::compute_gamma(VectorXd X){
     gamma.setZero();
 
 	for (int i=0;i<K_;i++)
-        gamma(i)=Prior_[i]*GaussianPDF(X,Mu_[i],Sigma_[i]);
+        gamma(i)=Prior_[i]*(GaussianPDF(X,Mu_[i],Sigma_[i]));
 
     double sum = gamma.sum();
-	if (sum<1e-100){
-		for (int i=0;i<K_;i++)
+    if (sum<1e-100){
+        for (int i=0;i<K_;i++)
             gamma(i)=1.0/K_;
-	}
-	else
+    }
+    else
         gamma = gamma/sum;
 
     return gamma;
@@ -723,14 +722,33 @@ VectorXd lagsDS::compute_flk(VectorXd xi, int k){
     /* Calculating each locally active component f_l^k(x) */
     VectorXd xi_dot;  xi_dot.resize(M_);  xi_dot.setZero();
     VectorXd att_diff;  att_diff.resize(M_);  att_diff.setZero();
+    VectorXd fg_att;  fg_att.resize(M_);  fg_att.setZero();
 
     /* Compute value of local hyper-plane function */
     double hk = compute_hk(xi, k);
     double h_set(1.0), corr_scale(0.0), d_att_g(0.0);
-    att_diff = att_l_[k] - att_g_;
-    d_att_g = att_diff.norm();
 
-    /* Compute values of h_set and corr_scale */
+    /* Compute values of h_set and corr_scale based on local attractor
+     * locations wrt. global attractor locations */
+    VectorXd w_norm = compute_grad_hk(xi,k);
+    w_norm = -w_norm.normalized();
+    fg_att = A_g_matrix_[k]*(att_l_[k] - att_g_);
+    fg_att = fg_att.normalized();
+
+    /* Compute Angle between att_l and att_g */
+    double angle_n = atan2(fg_att[1],fg_att[0]) - atan2(w_norm[1],w_norm[0]);
+    angle_n +=  angle_n <-M_PI ?  2*M_PI : 0;
+    angle_n +=  angle_n > M_PI ? -2*M_PI : 0;
+
+    /* Check if the angle between the vectors is going
+     * against the grain and set values accordingly*/
+    if ((angle_n > M_PI/2) || (angle_n < -M_PI/2)){
+        h_set = 0.0;
+        corr_scale = 5.0;
+    }else{
+        h_set = 1.0;
+        corr_scale = 1.0;
+    }
 
     if (hk > 1.0)
         hk = 1.0;
@@ -738,6 +756,8 @@ VectorXd lagsDS::compute_flk(VectorXd xi, int k){
         hk = hk*h_set;
 
     /* No local deflective DS necessary */
+    att_diff = att_l_[k] - att_g_;
+    d_att_g = att_diff.norm();
     if (d_att_g < 0.1)
         xi_dot = hk*(A_l_matrix_[k])*(xi - att_l_[k]);
     else{
@@ -747,8 +767,9 @@ VectorXd lagsDS::compute_flk(VectorXd xi, int k){
         /* Sum of components + modulation/correction */
         xi_dot = xi_dot - corr_scale*compute_lambda_k(xi,k)*compute_grad_hk(xi,k);
     }
-
     return xi_dot;
+
+
 
 }
 
@@ -786,11 +807,11 @@ double lagsDS::GaussianPDF(VectorXd x, VectorXd Mu, MatrixXd Sigma){
     if (detSigmaII<0)
         detSigmaII=0;
 
-	gfDiff=(x - Mu).transpose();
-	gfDiff_T=x - Mu;
-	gfDiffp =gfDiff*SigmaIIInv* gfDiff_T;
-	gfDiffp(0,0)=fabs(0.5*gfDiffp(0,0));
-	p = exp(-gfDiffp(0,0)) / sqrt(pow(2.0*PI_, M_)*( detSigmaII +1e-50));
+    gfDiff=(x - Mu).transpose();
+    gfDiff_T=x - Mu;
+    gfDiffp =gfDiff*SigmaIIInv* gfDiff_T;
+    gfDiffp(0,0)=fabs(0.5*gfDiffp(0,0));
+    p = exp(-gfDiffp(0,0)) / sqrt(pow(2.0*PI_, M_)*( detSigmaII + 1e-100));
 
     return p;
 }
