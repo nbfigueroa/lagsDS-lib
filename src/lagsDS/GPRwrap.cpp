@@ -62,7 +62,7 @@ void GPRwrap::loadModel(string &f_GPRwrapmodel){
     fin.close();
 
     /* Instantiate GPR Model with parameters read from text file*/
-    GPR_.reset(new GaussianProcessRegression<float>(GPRModel_.D, 1));
+    GPR_.reset(new GaussianProcessRegression<double>(GPRModel_.D, 1));
     GPR_->SetHyperParams(GPRModel_.length_scale, GPRModel_.sigma_f, GPRModel_.sigma_n);
 
     /* Add Trainig Data (could do batch version, but need train data to be Eigen*/

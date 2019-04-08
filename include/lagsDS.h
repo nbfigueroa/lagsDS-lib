@@ -55,6 +55,7 @@ private:
         VectorXd    *w_l_;
         double 		*b_l_;
         double      scale_;
+        double      b_g_;
 
         /* Instatiate GPR Wrapper Class*/
         std::unique_ptr<GPRwrap> alpha_GPR_;
@@ -63,8 +64,12 @@ public:
 
         /* For Agnostic C++ use */
         lagsDS(const char  *path_dims);
-        lagsDS(const char  *path_dims, const char  *path_prior,const char  *path_mu,const char  *path_sigma, const char  *path_Ag, const char  *path_Al, const char  *path_Ad, const char  *path_att_l, const char  *path_w_l, const char  *path_b_l, const char  *path_scale);
-        lagsDS(const int K, const int M, const MatrixXd Priors_fMatrix, const MatrixXd Mu_fMatrix, const MatrixXd Sigma_fMatrix, const MatrixXd Ag_fMatrix, const MatrixXd Al_fMatrix, const MatrixXd Ad_fMatrix, const MatrixXd attl_fMatrix, const MatrixXd wl_fMatrix, const MatrixXd bl_fMatrix, const MatrixXd scale_fMatrix );
+        lagsDS(const char  *path_dims, const char  *path_prior,const char  *path_mu,const char  *path_sigma, const char  *path_Ag,
+               const char  *path_Al, const char  *path_Ad, const char  *path_att_l, const char  *path_w_l, const char  *path_b_l,
+               const char  *path_scale, const char *path_gpr, const char  *path_b_g);
+        lagsDS(const int K, const int M, const MatrixXd Priors_fMatrix, const MatrixXd Mu_fMatrix, const MatrixXd Sigma_fMatrix,
+               const MatrixXd Ag_fMatrix, const MatrixXd Al_fMatrix, const MatrixXd Ad_fMatrix, const MatrixXd attl_fMatrix,
+               const MatrixXd wl_fMatrix, const MatrixXd bl_fMatrix, const MatrixXd scale_fMatrix, const char *path_gpr, const MatrixXd bg_fMatrix);
 
         /* For YAML/ROS Interface */
         lagsDS(const int K, const int M, const vector<double> Priors_vec, const vector<double> Mu_vec, const vector<double> Sigma_vec, const vector<double> Ag_vec);
@@ -78,15 +83,20 @@ public:
         void        initialize_Al(const char  *path_Al);
         void        initialize_Ad(const char  *path_Ad);
         void        initialize_local_params(const char  *path_att_l, const char  *path_w_l, const char  *path_b_l, const char  *path_scale);
+        void        initialize_alpha_gpr(const char  *path_alpha);
+        void        initialize_bg(const char  *path_b_g);
 
 
         /* For Agnostic C++ use */
         MatrixXd         compute_Ag(VectorXd xi);
         void             set_att_g(VectorXd att_g);
+        VectorXd         compute_fg(VectorXd xi);
         VectorXd         compute_fg(VectorXd xi, VectorXd att);
         VectorXd         compute_gamma(VectorXd xi);
         VectorXd         compute_fl(VectorXd xi);
         double           compute_alpha(VectorXd xi);
+        VectorXd         compute_f(VectorXd xi);
+        VectorXd         compute_f(VectorXd xi, bool b_scale);
 
         /* For YAML/ROS Interface with DS motion generators */
         MathLib::Vector  compute_fg(MathLib::Vector xi, MathLib::Vector att);
@@ -124,7 +134,7 @@ private:
         double      compute_lambda_k(VectorXd xi, int k);
         double 		GaussianPDF(VectorXd x,VectorXd Mu,MatrixXd Sigma);
         double 		compute_rbf(double b, VectorXd xi, VectorXd center);
-
+        double      compute_radius(VectorXd xi);
 
 };
 

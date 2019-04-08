@@ -34,7 +34,7 @@
 using namespace std;
 using namespace arma;
 
-typedef Eigen::VectorXf vecEig;
+typedef Eigen::VectorXd vecEig;
 
 
 /* GPRwrap: This structure holds the parameters of an RBF-SVM
@@ -43,19 +43,19 @@ typedef Eigen::VectorXf vecEig;
  * x_train:  Training input
  * y_train:  Training output
  * Hyper-parameters 
- *   double length_scale; 
- *   double sigma_f; 
- *   double sigma_n; 
+ *   float length_scale;
+ *   float sigma_f;
+ *   float sigma_n;
 */
 
 struct GPRModel{
     unsigned int D;
     unsigned int N_train;
-    vec    y_train;
-    mat    x_train;
-    double length_scale; 
-    double sigma_f; 
-    double sigma_n; 
+    vec   y_train;
+    mat   x_train;
+    double length_scale;
+    double sigma_f;
+    double sigma_n;
 
 };
 
@@ -70,7 +70,7 @@ class GPRwrap
 
         GPRModel GPRModel_;
         double y;
-        std::unique_ptr<GaussianProcessRegression<float>> GPR_;
+        std::unique_ptr<GaussianProcessRegression<double>> GPR_;
 
     public:
 

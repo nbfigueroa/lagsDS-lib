@@ -69,16 +69,16 @@ int
 main (int argc, char **argv)
 {
     /* These are the parameters I have to load from a file */
-    int D_in(2); float length_scale (0.25), sigma_f(1.0), sigma_n (0.01);
+    int D_in(2); double length_scale (0.25), sigma_f(1.0), sigma_n (0.01);
 
     cout << "*********** Starting Random test ***********" << endl;
     // input_dim and output_dim are integers specifying the dimensionality of input and output data respectively
-    GaussianProcessRegression<float> myGPR(D_in, 1);
+    GaussianProcessRegression<double> myGPR(D_in, 1);
 
     // the hyperparameters are float values specifying length-scale, signal variance and observation noise variance
     myGPR.SetHyperParams(length_scale, sigma_f, sigma_n);
-    Eigen::VectorXf train_input(D_in);
-    Eigen::VectorXf train_output(1);
+    Eigen::VectorXd train_input(D_in);
+    Eigen::VectorXd train_output(1);
 
     // add some training data
     int n_train = 100;
@@ -89,8 +89,8 @@ main (int argc, char **argv)
     }
 
     // get output at a testing point
-    Eigen::VectorXf test_input(D_in);
-    Eigen::VectorXf test_output(1);
+    Eigen::VectorXd test_input(D_in);
+    Eigen::VectorXd test_output(1);
     test_input.setRandom();
     test_output = myGPR.DoRegression(test_input);
     cout << "**************** finished ******************" << endl << endl;
@@ -116,14 +116,12 @@ main (int argc, char **argv)
 
 
     /* Fill in reference trajectories */
-    Eigen::VectorXf x_test(data_.D);
-    Eigen::VectorXf y_test(1);
+    Eigen::VectorXd x_test(data_.D);
+    Eigen::VectorXd y_test(1);
     vec             y_diff = zeros<vec>(data_.M);
     vec             y_time = zeros<vec>(data_.M);
 
 
-
-    double y_output(0.0);
     for (unsigned int  i=0;i<data_.M;i++){
         for(unsigned int d=0; d<data_.D; d++){
             x_test(d)  = data_.x(d,i);
@@ -136,8 +134,6 @@ main (int argc, char **argv)
 
         }
         t = clock() - t;
-
-
 
         y_time(i)  = ((float)t)/CLOCKS_PER_SEC;
         y_diff(i)  = fabs(data_.y(i) - y_test(0));

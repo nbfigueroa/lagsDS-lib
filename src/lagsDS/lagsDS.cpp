@@ -43,7 +43,9 @@ lagsDS::lagsDS(const char  *path_dims):K_(0),M_(0) {
 }
 
 
-lagsDS::lagsDS(const char  *path_dims, const char  *path_prior_,const char  *path_mu_,const char  *path_sigma_, const char  *path_Ag_, const char *path_Al_, const char *path_Ad_, const char *path_att_l_, const char *path_w_l_, const char *path_b_l_, const char *path_scale_):K_(0),M_(0) {
+lagsDS::lagsDS(const char  *path_dims, const char  *path_prior_,const char  *path_mu_,const char  *path_sigma_, const char  *path_Ag_, const char *path_Al_,
+               const char *path_Ad_, const char *path_att_l_, const char *path_w_l_, const char *path_b_l_, const char *path_scale_, const char *path_gpr_,
+               const char *path_b_g_):K_(0),M_(0) {
 
     /* Declare the number of the components
      * and the dimension  of the state  */
@@ -68,11 +70,14 @@ lagsDS::lagsDS(const char  *path_dims, const char  *path_prior_,const char  *pat
     initialize_Al(path_Al_);
     initialize_Ad(path_Ad_);
     initialize_local_params(path_att_l_, path_w_l_, path_b_l_, path_scale_);
-
+    initialize_alpha_gpr(path_gpr_);
+    initialize_bg(path_b_g_);
 }
 
 
-lagsDS::lagsDS(int K, int M, const MatrixXd Priors_fMatrix, const MatrixXd Mu_fMatrix, const MatrixXd Sigma_fMatrix, const MatrixXd Ag_fMatrix, const MatrixXd Al_fMatrix, const MatrixXd Ad_fMatrix, const MatrixXd attl_fMatrix, const MatrixXd wl_fMatrix, const MatrixXd bl_fMatrix, const MatrixXd scale_fMatrix):K_(K),M_(M) {
+lagsDS::lagsDS(int K, int M, const MatrixXd Priors_fMatrix, const MatrixXd Mu_fMatrix, const MatrixXd Sigma_fMatrix, const MatrixXd Ag_fMatrix,
+               const MatrixXd Al_fMatrix, const MatrixXd Ad_fMatrix, const MatrixXd attl_fMatrix, const MatrixXd wl_fMatrix, const MatrixXd bl_fMatrix,
+               const MatrixXd scale_fMatrix, const char *path_gpr_,const MatrixXd bg_fMatrix):K_(K),M_(M) {
 
     /* Given the parameters directly as MatrixXd, initialize all matrices*/
     setup_params();
@@ -88,6 +93,12 @@ lagsDS::lagsDS(int K, int M, const MatrixXd Priors_fMatrix, const MatrixXd Mu_fM
 
     cout<<"** Initializing scale **"<< endl;
     scale_ = scale_fMatrix.coeff(0,0);
+
+    /* Instantiate the GPR Wrapper Class and Load Model */
+    initialize_alpha_gpr(path_gpr_);
+
+    cout<<"** Initializing b_g **"<< endl;
+    b_g_ = bg_fMatrix.coeff(0,0);
 }
 
 
@@ -314,102 +325,6 @@ void lagsDS::initialize_b_l(const MatrixXd fMatrix ){
         b_l_[i]=fMatrix(0,i);
 }
 
-/*********************************************************/
-/* Initialization functions with vector<double> as input */
-/*********************************************************/
-
-void lagsDS::initialize_Priors_vec(const vector<double> Priors_vec){
-    cout<<"** Initializing Priors **"<< endl;
-    if (Priors_vec.size() != K_){
-        cout<<"Initialization of Prior is wrong."<<endl;
-        cout<<"Number of components is: "<<K_<<endl;
-        cout<<"Dimension of states of Prior is: "<<Priors_vec.size()<<endl;
-        ERROR();
-    }
-
-    for (int k=0; k<K_; k++)
-        Prior_[k] = Priors_vec[k];
-}
-
-
-void lagsDS::initialize_Mu_vec(const vector<double> Mu_vec){
-
-    cout<<"** Initializing Mu **"<< endl;
-    if (Mu_vec.size() != K_*M_){
-        cout<<"Initialization of Mean is wrong."<<endl;
-        cout<<"Size of vector should be K ("<<K_ << ")*M("<< M_<< ") =" << K_*M_ <<endl;
-        cout<<"Given vector is of size "<< Mu_vec.size() << endl;
-        ERROR();
-    }
-
-
-    for(int k=0; k<K_; k++ ){
-        VectorXd Mu_k; Mu_k.resize(M_); Mu_k.setZero();
-        for (int m = 0; m < M_; m++)
-            Mu_k[m] = Mu_vec[k * M_ + m];
-        Mu_[k]=Mu_k;
-    }
-
-    /* For Debugging */
-//    for(int k=0; k<K_; k++ )
-//        cout << "Mu["<< k << "]"<< endl << Mu_[k] << endl;
-}
-
-
-void lagsDS::initialize_Sigma_vec(const vector<double> Sigma_vec){
-
-    cout<<"** Initializing Sigma **"<< endl;
-    if (Sigma_vec.size() != K_*M_*M_){
-        cout<<"Initialization of Sigma is wrong."<<endl;
-        cout<<"Size of vector should be K ("<<K_ << ")*M("<< M_<< ")*M(" << M_<< ") =" << K_*M_*M_ <<endl;
-        cout<<"Given vector is of size "<< Sigma_vec.size() << endl;
-        ERROR();
-    }
-
-    for(int k=0; k<K_; k++ ){
-        MatrixXd Sigma_k; Sigma_k.resize(M_,M_); Sigma_k.setZero();
-        for (int row = 0; row < M_; row++) {
-            for (int col = 0; col < M_; col++) {
-                int ind = k * M_ * M_ + row * M_ + col;
-                Sigma_k(col,row)  = Sigma_vec[ind];
-            }
-        }
-        Sigma_[k] = Sigma_k;
-    }
-
-    /* For Debugging */
-//    for(int k=0; k<K_; k++ )
-//        cout << "Sigma["<< k << "]"<< endl << Sigma_[k] << endl;
-
-}
-
-
-void lagsDS::initialize_Ag_vec(const vector<double> Ag_vec){
-    cout<<"** Initializing A **"<< endl;
-    if (Ag_vec.size() != K_*M_*M_){
-        cout<<"Initialization of A-matrices is wrong."<<endl;
-        cout<<"Size of vector should be K ("<<K_ << ")*M("<< M_<< ")*M(" << M_<< ") =" << K_*M_*M_ <<endl;
-        cout<<"Given vector is of size "<< Ag_vec.size() << endl;
-        ERROR();
-    }
-
-    for(int k=0; k<K_; k++ ){
-        MatrixXd A_k; A_k.resize(M_,M_); A_k.setZero();
-        for (int row = 0; row < M_; row++) {
-            for (int col = 0; col < M_; col++) {
-                int ind = k * M_ * M_ + row * M_ + col;
-                A_k(col,row)  = Ag_vec[ind];
-            }
-        }
-        A_g_matrix_[k] = A_k;
-    }
-
-    /* For Debugging */
-//    for(int k=0; k<K_; k++ )
-//        cout << "A["<< k << "]"<< endl << A_g_matrix_[k] << endl;
-}
-
-
 
 /************************************************************/
 /* Initialization functions with path to text file as input */
@@ -580,10 +495,134 @@ void lagsDS::initialize_local_params(const char  *path_att_l_, const char  *path
 }
 
 
+void lagsDS::initialize_alpha_gpr(const char  *path_alpha_){
 
-/****************************************/
-/*     Actual computation functions     */
-/****************************************/
+    /* Load GPR model to GPR Wrapper Class*/
+    std::string gpr_model_name = path_alpha_;
+    alpha_GPR_->loadModel(gpr_model_name);
+}
+
+
+void lagsDS::initialize_bg(const char  *path_b_g_){
+
+    /* Initialize A
+     * path_Ad_ is the path of A matrix*/
+
+    MatrixXd fMatrix(1,1);fMatrix.setZero();
+    if (fileUtils_.is_file_exist(path_b_g_))
+        fMatrix=fileUtils_.readMatrix(path_b_g_);
+    else{
+        cout<<"The provided path does not exist: "<<path_b_g_<<endl;
+        ERROR();
+    }
+
+    cout<<"** Initializing b_g **"<< endl;
+    b_g_ = fMatrix.coeff(0,0);
+}
+
+
+/*****************************************************************************/
+/* Initialization functions with vector<double> as input for ROS interfacing */
+/*****************************************************************************/
+
+void lagsDS::initialize_Priors_vec(const vector<double> Priors_vec){
+    cout<<"** Initializing Priors **"<< endl;
+    if (Priors_vec.size() != K_){
+        cout<<"Initialization of Prior is wrong."<<endl;
+        cout<<"Number of components is: "<<K_<<endl;
+        cout<<"Dimension of states of Prior is: "<<Priors_vec.size()<<endl;
+        ERROR();
+    }
+
+    for (int k=0; k<K_; k++)
+        Prior_[k] = Priors_vec[k];
+}
+
+
+void lagsDS::initialize_Mu_vec(const vector<double> Mu_vec){
+
+    cout<<"** Initializing Mu **"<< endl;
+    if (Mu_vec.size() != K_*M_){
+        cout<<"Initialization of Mean is wrong."<<endl;
+        cout<<"Size of vector should be K ("<<K_ << ")*M("<< M_<< ") =" << K_*M_ <<endl;
+        cout<<"Given vector is of size "<< Mu_vec.size() << endl;
+        ERROR();
+    }
+
+
+    for(int k=0; k<K_; k++ ){
+        VectorXd Mu_k; Mu_k.resize(M_); Mu_k.setZero();
+        for (int m = 0; m < M_; m++)
+            Mu_k[m] = Mu_vec[k * M_ + m];
+        Mu_[k]=Mu_k;
+    }
+
+    /* For Debugging */
+//    for(int k=0; k<K_; k++ )
+//        cout << "Mu["<< k << "]"<< endl << Mu_[k] << endl;
+}
+
+
+void lagsDS::initialize_Sigma_vec(const vector<double> Sigma_vec){
+
+    cout<<"** Initializing Sigma **"<< endl;
+    if (Sigma_vec.size() != K_*M_*M_){
+        cout<<"Initialization of Sigma is wrong."<<endl;
+        cout<<"Size of vector should be K ("<<K_ << ")*M("<< M_<< ")*M(" << M_<< ") =" << K_*M_*M_ <<endl;
+        cout<<"Given vector is of size "<< Sigma_vec.size() << endl;
+        ERROR();
+    }
+
+    for(int k=0; k<K_; k++ ){
+        MatrixXd Sigma_k; Sigma_k.resize(M_,M_); Sigma_k.setZero();
+        for (int row = 0; row < M_; row++) {
+            for (int col = 0; col < M_; col++) {
+                int ind = k * M_ * M_ + row * M_ + col;
+                Sigma_k(col,row)  = Sigma_vec[ind];
+            }
+        }
+        Sigma_[k] = Sigma_k;
+    }
+
+    /* For Debugging */
+//    for(int k=0; k<K_; k++ )
+//        cout << "Sigma["<< k << "]"<< endl << Sigma_[k] << endl;
+
+}
+
+
+void lagsDS::initialize_Ag_vec(const vector<double> Ag_vec){
+    cout<<"** Initializing A **"<< endl;
+    if (Ag_vec.size() != K_*M_*M_){
+        cout<<"Initialization of A-matrices is wrong."<<endl;
+        cout<<"Size of vector should be K ("<<K_ << ")*M("<< M_<< ")*M(" << M_<< ") =" << K_*M_*M_ <<endl;
+        cout<<"Given vector is of size "<< Ag_vec.size() << endl;
+        ERROR();
+    }
+
+    for(int k=0; k<K_; k++ ){
+        MatrixXd A_k; A_k.resize(M_,M_); A_k.setZero();
+        for (int row = 0; row < M_; row++) {
+            for (int col = 0; col < M_; col++) {
+                int ind = k * M_ * M_ + row * M_ + col;
+                A_k(col,row)  = Ag_vec[ind];
+            }
+        }
+        A_g_matrix_[k] = A_k;
+    }
+
+    /* For Debugging */
+//    for(int k=0; k<K_; k++ )
+//        cout << "A["<< k << "]"<< endl << A_g_matrix_[k] << endl;
+}
+
+
+
+
+
+/**********************************************************************************************/
+/*  -------------------------   Actual DS equation computations -------------------------     */
+/**********************************************************************************************/
 
 /***************************************************/
 /******** Computations for Global Component ********/
@@ -610,24 +649,6 @@ MatrixXd lagsDS::compute_Ag(VectorXd X){
 	return A;
 }
 
-VectorXd lagsDS::compute_gamma(VectorXd X){
-    VectorXd gamma;
-    gamma.resize(K_);
-    gamma.setZero();
-
-	for (int i=0;i<K_;i++)
-        gamma(i)=Prior_[i]*(GaussianPDF(X,Mu_[i],Sigma_[i]));
-
-    double sum = gamma.sum();
-    if (sum<1e-100){
-        for (int i=0;i<K_;i++)
-            gamma(i)=1.0/K_;
-    }
-    else
-        gamma = gamma/sum;
-
-    return gamma;
-}
 
 VectorXd   lagsDS::compute_fg(VectorXd xi, VectorXd att){
     MatrixXd A_matrix; A_matrix.resize(M_,M_); A_matrix.setZero();
@@ -635,6 +656,16 @@ VectorXd   lagsDS::compute_fg(VectorXd xi, VectorXd att){
 
     A_matrix = compute_Ag(xi);
     xi_dot = A_matrix*(xi - att);
+
+    return xi_dot;
+}
+
+VectorXd   lagsDS::compute_fg(VectorXd xi){
+    MatrixXd A_matrix; A_matrix.resize(M_,M_); A_matrix.setZero();
+    VectorXd xi_dot;     xi_dot.resize(M_);    xi_dot.setZero();
+
+    A_matrix = compute_Ag(xi);
+    xi_dot = A_matrix*(xi - att_g_);
 
     return xi_dot;
 }
@@ -694,7 +725,7 @@ double lagsDS::compute_hk(VectorXd xi, int k){
     double h, h_tilde, bias;
     bias    = 1 - w_l_[k].transpose()*att_l_[k];
     h       = w_l_[k].transpose()*xi + bias;
-    h_tilde = 0.5 * (h + abs(h));
+    h_tilde = 0.5 * (h + fabs(h));
 
     return h_tilde;
 }
@@ -717,7 +748,7 @@ double lagsDS::compute_lambda_k(VectorXd xi, int k){
 
     /* Calculating each hyper-plane function h_k(x) */
     double lambda(0.0) ;
-    lambda = 1 - compute_rbf(b_l_[k], xi, att_l_[k]);
+    lambda = compute_rbf(b_l_[k], xi, att_l_[k]);
     return lambda;
 
 }
@@ -777,8 +808,38 @@ VectorXd lagsDS::compute_flk(VectorXd xi, int k){
 
 }
 
+/********************************************************************************/
+/******** Computations for Combined DS (Locally Active Globally Stable) *********/
+/********************************************************************************/
 
-VectorXd   lagsDS::compute_fl(VectorXd xi){
+VectorXd lagsDS::compute_f(VectorXd xi){
+
+    VectorXd xi_dot;     xi_dot.resize(M_);    xi_dot.setZero();
+
+    /* Locally Active Globally Stable DS bitches! */
+    double alpha = compute_alpha(xi);
+    xi_dot = alpha*compute_fg(xi) + (1-alpha)*compute_fl(xi);
+
+    return xi_dot;
+}
+
+
+VectorXd lagsDS::compute_f(VectorXd xi, bool b_scale){
+
+    VectorXd xi_dot;     xi_dot.resize(M_);    xi_dot.setZero();
+
+    /* Locally Active Globally Stable DS bitches! */
+    double alpha = compute_alpha(xi);
+    if (b_scale)
+        xi_dot = alpha*compute_fg(xi) + (1/scale_)*(1-alpha)*compute_fl(xi);
+    else
+        xi_dot = alpha*compute_fg(xi) + (1-alpha)*compute_fl(xi);
+
+    return xi_dot;
+}
+
+
+VectorXd  lagsDS::compute_fl(VectorXd xi){
 
     /* Calculating the weighted sum of local components f_l(x) = sum f_l^k(x) */
     VectorXd xi_dot;     xi_dot.resize(M_);    xi_dot.setZero();
@@ -795,12 +856,28 @@ VectorXd   lagsDS::compute_fl(VectorXd xi){
 }
 
 
-double lagsDS::compute_alpha(VectorXd xi){
-    double alpha(0.0);
+/*****************************************************/
+/******** Probabilistic/Activation Functions *********/
+/*****************************************************/
 
-    return alpha;
+VectorXd lagsDS::compute_gamma(VectorXd X){
+    VectorXd gamma;
+    gamma.resize(K_);
+    gamma.setZero();
+
+    for (int i=0;i<K_;i++)
+        gamma(i)=Prior_[i]*(GaussianPDF(X,Mu_[i],Sigma_[i]));
+
+    double sum = gamma.sum();
+    if (sum<1e-100){
+        for (int i=0;i<K_;i++)
+            gamma(i)=1.0/K_;
+    }
+    else
+        gamma = gamma/sum;
+
+    return gamma;
 }
-
 
 
 double lagsDS::GaussianPDF(VectorXd x, VectorXd Mu, MatrixXd Sigma){
@@ -827,12 +904,39 @@ double lagsDS::GaussianPDF(VectorXd x, VectorXd Mu, MatrixXd Sigma){
     return p;
 }
 
+
+double lagsDS::compute_alpha(VectorXd xi){
+
+    double alpha(0.0), r(0.0);
+    /* Compute Expectation of GPR */
+    Eigen::VectorXd y_test(1);
+    y_test = alpha_GPR_->regress_GPR(xi);
+    /* Compute Global Radius Function */
+    r = compute_radius(xi);
+    /* Compute Full Activation Function */
+    alpha = (1-r)*(1 - y_test(0)) + r;
+    /* Truncate values from uncertainties in GPR */
+    if (alpha < 0)
+        alpha = 0;
+    if (alpha > 1.0)
+        alpha = 1.0;
+    return alpha;
+}
+
+
 double lagsDS::compute_rbf(double b_r, VectorXd xi, VectorXd center){
     double r;
     VectorXd xiDiff(M_);
     xiDiff = xi - center;
-    r = 1 - exp(-b_r* xiDiff.squaredNorm());
+    r = exp(-b_r* xiDiff.squaredNorm());
     return r;
 }
+
+double lagsDS::compute_radius(VectorXd xi){
+    double r(0.0);
+    r = compute_rbf(b_g_, xi, att_g_);
+    return r;
+}
+
 
 
