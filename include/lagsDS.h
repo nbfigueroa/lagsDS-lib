@@ -101,8 +101,10 @@ public:
         VectorXd         compute_f(VectorXd xi, bool b_scale);
 
         /* For YAML/ROS Interface with DS motion generators */
-        MathLib::Vector  compute_fg(MathLib::Vector xi, MathLib::Vector att);
-
+        MathLib::Vector  compute_fg(MathLib::Vector xi, MathLib::Vector att_g);
+        void             set_att_g(MathLib::Vector att_g);
+        MathLib::Vector  compute_f(MathLib::Vector xi);
+        // TODO: Add the other functions later for debugging...
 
 private:
 

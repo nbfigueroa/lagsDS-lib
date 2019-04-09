@@ -832,20 +832,24 @@ void lagsDS::set_att_g(VectorXd att_g){
     cout << "Global attractor set:" << endl << att_g_ << endl;
 }
 
-MathLib::Vector lagsDS::compute_fg(MathLib::Vector xi, MathLib::Vector att){
+
+/********************************************************/
+/******** [For ROS/ds_motion_generator interface ********/
+/********************************************************/
+MathLib::Vector lagsDS::compute_fg(MathLib::Vector xi, MathLib::Vector att_g){
 
     /* Check size of input vectors */
 
     if (xi.Size() != M_){
-        cout<<"The dimension of X in compute_f is wrong."<<endl;
+        cout<<"The dimension of X in compute_fg is wrong."<<endl;
         cout<<"Dimension of states is: "<<M_<<endl;
         cout<<"You provided a vector of size "<< xi.Size()<<endl;
         ERROR();
     }
-    if (att.Size() != M_){
-        cout<<"The dimension of X in compute_f is wrong."<<endl;
+    if (att_g.Size() != M_){
+        cout<<"The dimension of att_g in compute_fg is wrong."<<endl;
         cout<<"Dimension of states is: "<<M_<<endl;
-        cout<<"You provided a vector of size "<< att.Size()<<endl;
+        cout<<"You provided a vector of size "<< att_g.Size()<<endl;
         ERROR();
     }
 
@@ -854,12 +858,62 @@ MathLib::Vector lagsDS::compute_fg(MathLib::Vector xi, MathLib::Vector att){
     VectorXd att_; att_.resize(M_);  att_.setZero();
     for (int m=0;m<M_;m++){
         xi_[m]  = xi[m];
-        att_[m] = att[m];
+        att_[m] = att_g[m];
     }
 
     /* Compute Desired Velocity */
     VectorXd xi_dot_;  xi_dot_.resize(M_);    xi_dot_.setZero();
     xi_dot_ = compute_fg(xi_,att_);
+
+    /* Transform Desired Velocity to MathLib form */
+    MathLib::Vector xi_dot; xi_dot.Resize(M_);
+    for (int m=0;m<M_;m++)
+        xi_dot[m] = xi_dot_[m];
+
+    return xi_dot;
+}
+
+
+void lagsDS::set_att_g(MathLib::Vector att_g){
+
+    if (att_g.Size() != M_){
+        cout<<"The dimension of X in compute_f is wrong."<<endl;
+        cout<<"Dimension of states is: "<<M_<<endl;
+        cout<<"You provided a vector of size "<< att_g.Size()<<endl;
+        ERROR();
+    }
+
+    /* Fill in VectorXd versions of att */
+    VectorXd att_; att_.resize(M_);  att_.setZero();
+    for (int m=0;m<M_;m++){
+        att_[m] = att_g[m];
+    }
+
+    /* Give value to class */
+    set_att_g(att_);
+}
+
+
+MathLib::Vector lagsDS::compute_f(MathLib::Vector xi){
+
+    /* Check size of input vectors */
+
+    if (xi.Size() != M_){
+        cout<<"The dimension of X in compute_fg is wrong."<<endl;
+        cout<<"Dimension of states is: "<<M_<<endl;
+        cout<<"You provided a vector of size "<< xi.Size()<<endl;
+        ERROR();
+    }
+
+    /* Fill in VectorXd versions of xi and att */
+    VectorXd xi_;  xi_.resize(M_);   xi_.setZero();;
+    for (int m=0;m<M_;m++){
+        xi_[m]  = xi[m];
+    }
+
+    /* Compute Desired Velocity */
+    VectorXd xi_dot_;  xi_dot_.resize(M_);    xi_dot_.setZero();
+    xi_dot_ = compute_f(xi_);
 
     /* Transform Desired Velocity to MathLib form */
     MathLib::Vector xi_dot; xi_dot.Resize(M_);
