@@ -1,7 +1,0 @@
-- git:
-    local-name: gaussian_process_regression
-    uri: git@github.com:epfl-lasa/gaussian-process-regression.git
-
-- git:
-    local-name: mathlib
-    uri: git@github.com:epfl-lasa/mathlib.git
