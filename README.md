@@ -3,6 +3,10 @@ This package provides a C++ library for evaluation of the Locally Active Globall
 
 Descriptino of LAGS...
 
+## Dependencies
+System: Eigen, Armadillo
+Local/Ros: mathlib, [gaussian-process-regression](https://github.com/epfl-lasa/gaussian-process-regression)
+
 ## Installation
 Do the following steps:
 * In your catkin src directory clone the repository
