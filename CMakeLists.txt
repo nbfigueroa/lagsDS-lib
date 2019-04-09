@@ -13,11 +13,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 set(CMAKE_CXX_FLAGS "-std=c++11")
 
 
-####################### Adding GPR package ##################
-# set(GAUSSIAN_PROCESS_REGRESSION_ROOT "/path/to/boost")
+####################### Adding GPR package [Work wit]##################
 find_package(gaussian_process_regression)
 include_directories(${gaussian_process_regression_INCLUDE_DIRS})
 
+#set(GPR "${CMAKE_CURRENT_SOURCE_DIR}/../gaussian_process_regression/")
+#include_directories (${GPR}/include/)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)

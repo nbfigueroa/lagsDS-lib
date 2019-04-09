@@ -31,8 +31,8 @@ main (int argc, char **argv)
 {
 
     /* Path to the parameters text files for LAGS-DS */
-    string path_model  = "/home/nbfigueroa/Dropbox/PhD_papers/LAGS-paper/new-code/lagsDS-opt/models/iCub-Narrow-Passage-LAGS/";
-//    string path_model  = "/home/nbfigueroa/Dropbox/PhD_papers/LAGS-paper/new-code/lagsDS-opt/models/iCub-Object-Conveyor-LAGS/";
+    string path_model  = "../models/iCub-Narrow-Passage-LAGS/";
+//    string path_model  = "../models/iCub-Object-Conveyor-LAGS/";
     string path_dim      = path_model +  "dimensions";
     string path_Priors   = path_model +  "Priors";
     string path_Mu       = path_model +  "Mu";
