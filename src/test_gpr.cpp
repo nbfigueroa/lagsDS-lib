@@ -99,8 +99,11 @@ main (int argc, char **argv)
 
     cout << "*********** Testing Class Wrapper with Loaded Model/Test-Data ***********" << endl;
     /* Start testing my class wrapper */
-    string model_fileName = "../models/iCub-Narrow-Passage-LAGS/GPR_model.txt";
-    string data_fileName = "../models/iCub-Narrow-Passage-LAGS/GPR_data.txt";
+    // string model_fileName = "../models/iCub-Narrow-Passage-LAGS/GPR_model.txt";
+    // string data_fileName = "../models/iCub-Narrow-Passage-LAGS/GPR_data.txt";
+
+    string model_fileName = "../models/iCub-Narrow-Passage-LAGS/Theta_GPR_model.txt";
+    string data_fileName = "../models/iCub-Narrow-Passage-LAGS/Theta_GPR_data.txt";
 
 
     /* Instatiate Class and Load Model Parameters */
