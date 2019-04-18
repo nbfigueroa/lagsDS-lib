@@ -917,7 +917,7 @@ VectorXd lagsDS::compute_flk(VectorXd xi, int k){
         xi_dot = (hk*A_l_matrix_[k] + (1-hk)*A_d_matrix_[k])*(xi - att_l_[k]);
 
         /* Sum of components + modulation/correction */
-        xi_dot = xi_dot - corr_scale*compute_lambda_k(xi,k)*compute_grad_hk(xi,k);
+        xi_dot = xi_dot - 0.1*corr_scale*compute_lambda_k(xi,k)*compute_grad_hk(xi,k);
     }
     return xi_dot;
 
