@@ -990,10 +990,10 @@ VectorXd lagsDS::compute_flk(VectorXd xi, int k){
      * against the grain and set values accordingly*/
     if ((angle_n > M_PI/2) || (angle_n < -M_PI/2)){
         h_set = 0.0;
-        corr_scale = 5.0;
+        corr_scale = 2.5;
     }else{
         h_set = 1.0;
-        corr_scale = 1.0;
+        corr_scale = 0.5;
     }
 
     if (hk > 1.0)
