@@ -924,6 +924,35 @@ MathLib::Vector lagsDS::compute_f(MathLib::Vector xi){
 }
 
 
+MathLib::Vector lagsDS::compute_f(MathLib::Vector xi, bool b_scale){
+
+    /* Check size of input vectors */
+
+    if (xi.Size() != M_){
+        cout<<"The dimension of X in compute_fg is wrong."<<endl;
+        cout<<"Dimension of states is: "<<M_<<endl;
+        cout<<"You provided a vector of size "<< xi.Size()<<endl;
+        ERROR();
+    }
+
+    /* Fill in VectorXd versions of xi and att */
+    VectorXd xi_;  xi_.resize(M_);   xi_.setZero();;
+    for (int m=0;m<M_;m++){
+        xi_[m]  = xi[m];
+    }
+
+    /* Compute Desired Velocity */
+    VectorXd xi_dot_;  xi_dot_.resize(M_);    xi_dot_.setZero();
+    xi_dot_ = compute_f(xi_, b_scale);
+
+    /* Transform Desired Velocity to MathLib form */
+    MathLib::Vector xi_dot; xi_dot.Resize(M_);
+    for (int m=0;m<M_;m++)
+        xi_dot[m] = xi_dot_[m];
+
+    return xi_dot;
+}
+
 /***************************************************/
 /******** Computations for Local Component *********/
 /***************************************************/
@@ -1023,11 +1052,22 @@ VectorXd lagsDS::compute_flk(VectorXd xi, int k){
 
 VectorXd lagsDS::compute_f(VectorXd xi){
 
-    VectorXd xi_dot;     xi_dot.resize(M_);    xi_dot.setZero();
+    VectorXd xi_dot;  xi_dot.resize(M_);    xi_dot.setZero();
+    VectorXd f_g;     f_g.resize(M_);    f_g.setZero();
+    VectorXd f_l;     f_l.resize(M_);    f_l.setZero();
+
+    
 
     /* Locally Active Globally Stable DS bitches! */
     double alpha = compute_alpha(xi);
-    xi_dot = alpha*compute_fg(xi) + (1-alpha)*compute_fl(xi);
+    f_g  = compute_fg(xi);
+    f_l  = compute_fl(xi);
+
+    /* Create a tube around the trajectory instead of line */
+    if (alpha < 0.05)
+        xi_dot = f_g;        
+    else 
+        xi_dot = alpha*f_g + (1-alpha)*f_l;
 
     return xi_dot;
 }
@@ -1036,13 +1076,24 @@ VectorXd lagsDS::compute_f(VectorXd xi){
 VectorXd lagsDS::compute_f(VectorXd xi, bool b_scale){
 
     VectorXd xi_dot;     xi_dot.resize(M_);    xi_dot.setZero();
+    VectorXd f_g;     f_g.resize(M_);    f_g.setZero();
+    VectorXd f_l;     f_l.resize(M_);    f_l.setZero();
 
     /* Locally Active Globally Stable DS bitches! */
     double alpha = compute_alpha(xi);
-    if (b_scale)
-        xi_dot = alpha*compute_fg(xi) + (1/scale_)*(1-alpha)*compute_fl(xi);
-    else
-        xi_dot = alpha*compute_fg(xi) + (1-alpha)*compute_fl(xi);
+    f_g  = compute_fg(xi);
+    f_l  = compute_fl(xi);
+
+    if (alpha < 0.05)
+            xi_dot = f_g;        
+    else {
+        if (b_scale)
+            xi_dot = alpha*f_g + (1/scale_)*(1-alpha)*f_l;
+        else
+            xi_dot = alpha*f_g + (1-alpha)*f_l;
+    }
+
+
 
     return xi_dot;
 }

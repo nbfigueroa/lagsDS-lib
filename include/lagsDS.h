@@ -104,6 +104,7 @@ public:
         MathLib::Vector  compute_fg(MathLib::Vector xi, MathLib::Vector att_g);
         void             set_att_g(MathLib::Vector att_g);
         MathLib::Vector  compute_f(MathLib::Vector xi);
+        MathLib::Vector  compute_f(MathLib::Vector xi, bool b_scale);
         // TODO: Add the other functions later for debugging...
 
 private:
