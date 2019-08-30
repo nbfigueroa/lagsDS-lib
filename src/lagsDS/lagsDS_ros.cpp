@@ -132,7 +132,10 @@ lagsDS::~lagsDS(){
 
 void lagsDS::ERROR()
 {
-    cout << "Something's WROOOONG!!" << endl;
+    while(ros::ok())
+    {
+
+    }
 }
 
 void lagsDS::setup_params()
@@ -830,6 +833,126 @@ void lagsDS::set_att_g(VectorXd att_g){
 }
 
 
+/********************************************************/
+/******** [For ROS/ds_motion_generator interface ********/
+/********************************************************/
+MathLib::Vector lagsDS::compute_fg(MathLib::Vector xi, MathLib::Vector att_g){
+
+    /* Check size of input vectors */
+
+    if (xi.Size() != M_){
+        cout<<"The dimension of X in compute_fg is wrong."<<endl;
+        cout<<"Dimension of states is: "<<M_<<endl;
+        cout<<"You provided a vector of size "<< xi.Size()<<endl;
+        ERROR();
+    }
+    if (att_g.Size() != M_){
+        cout<<"The dimension of att_g in compute_fg is wrong."<<endl;
+        cout<<"Dimension of states is: "<<M_<<endl;
+        cout<<"You provided a vector of size "<< att_g.Size()<<endl;
+        ERROR();
+    }
+
+    /* Fill in VectorXd versions of xi and att */
+    VectorXd xi_;  xi_.resize(M_);   xi_.setZero();
+    VectorXd att_; att_.resize(M_);  att_.setZero();
+    for (int m=0;m<M_;m++){
+        xi_[m]  = xi[m];
+        att_[m] = att_g[m];
+    }
+
+    /* Compute Desired Velocity */
+    VectorXd xi_dot_;  xi_dot_.resize(M_);    xi_dot_.setZero();
+    xi_dot_ = compute_fg(xi_,att_);
+
+    /* Transform Desired Velocity to MathLib form */
+    MathLib::Vector xi_dot; xi_dot.Resize(M_);
+    for (int m=0;m<M_;m++)
+        xi_dot[m] = xi_dot_[m];
+
+    return xi_dot;
+}
+
+
+void lagsDS::set_att_g(MathLib::Vector att_g){
+
+    if (att_g.Size() != M_){
+        cout<<"The dimension of X in compute_f is wrong."<<endl;
+        cout<<"Dimension of states is: "<<M_<<endl;
+        cout<<"You provided a vector of size "<< att_g.Size()<<endl;
+        ERROR();
+    }
+
+    /* Fill in VectorXd versions of att */
+    VectorXd att_; att_.resize(M_);  att_.setZero();
+    for (int m=0;m<M_;m++){
+        att_[m] = att_g[m];
+    }
+
+    /* Give value to class */
+    set_att_g(att_);
+}
+
+
+MathLib::Vector lagsDS::compute_f(MathLib::Vector xi){
+
+    /* Check size of input vectors */
+
+    if (xi.Size() != M_){
+        cout<<"The dimension of X in compute_fg is wrong."<<endl;
+        cout<<"Dimension of states is: "<<M_<<endl;
+        cout<<"You provided a vector of size "<< xi.Size()<<endl;
+        ERROR();
+    }
+
+    /* Fill in VectorXd versions of xi and att */
+    VectorXd xi_;  xi_.resize(M_);   xi_.setZero();;
+    for (int m=0;m<M_;m++){
+        xi_[m]  = xi[m];
+    }
+
+    /* Compute Desired Velocity */
+    VectorXd xi_dot_;  xi_dot_.resize(M_);    xi_dot_.setZero();
+    xi_dot_ = compute_f(xi_);
+
+    /* Transform Desired Velocity to MathLib form */
+    MathLib::Vector xi_dot; xi_dot.Resize(M_);
+    for (int m=0;m<M_;m++)
+        xi_dot[m] = xi_dot_[m];
+
+    return xi_dot;
+}
+
+
+MathLib::Vector lagsDS::compute_f(MathLib::Vector xi, bool b_scale){
+
+    /* Check size of input vectors */
+
+    if (xi.Size() != M_){
+        cout<<"The dimension of X in compute_fg is wrong."<<endl;
+        cout<<"Dimension of states is: "<<M_<<endl;
+        cout<<"You provided a vector of size "<< xi.Size()<<endl;
+        ERROR();
+    }
+
+    /* Fill in VectorXd versions of xi and att */
+    VectorXd xi_;  xi_.resize(M_);   xi_.setZero();;
+    for (int m=0;m<M_;m++){
+        xi_[m]  = xi[m];
+    }
+
+    /* Compute Desired Velocity */
+    VectorXd xi_dot_;  xi_dot_.resize(M_);    xi_dot_.setZero();
+    xi_dot_ = compute_f(xi_, b_scale);
+
+    /* Transform Desired Velocity to MathLib form */
+    MathLib::Vector xi_dot; xi_dot.Resize(M_);
+    for (int m=0;m<M_;m++)
+        xi_dot[m] = xi_dot_[m];
+
+    return xi_dot;
+}
+
 /***************************************************/
 /******** Computations for Local Component *********/
 /***************************************************/
@@ -941,8 +1064,7 @@ VectorXd lagsDS::compute_f(VectorXd xi){
     f_l  = compute_fl(xi);
 
     /* Create a tube around the trajectory instead of line */
-    /* Change this value depending on GPR function*/
-    if (alpha < 0.075) 
+    if (alpha < 0.05)
         xi_dot = f_g;        
     else 
         xi_dot = alpha*f_g + (1-alpha)*f_l;
@@ -962,7 +1084,7 @@ VectorXd lagsDS::compute_f(VectorXd xi, bool b_scale){
     f_g  = compute_fg(xi);
     f_l  = compute_fl(xi);
 
-    if (alpha < 0.075)
+    if (alpha < 0.05)
             xi_dot = f_g;        
     else {
         if (b_scale)
@@ -970,6 +1092,7 @@ VectorXd lagsDS::compute_f(VectorXd xi, bool b_scale){
         else
             xi_dot = alpha*f_g + (1-alpha)*f_l;
     }
+
 
 
     return xi_dot;
@@ -1074,6 +1197,7 @@ double lagsDS::compute_radius(VectorXd xi){
     r = compute_rbf(b_g_, xi, att_g_);
     return r;
 }
+
 
 
 

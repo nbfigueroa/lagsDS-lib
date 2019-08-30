@@ -896,10 +896,10 @@ VectorXd lagsDS::compute_flk(VectorXd xi, int k){
      * against the grain and set values accordingly*/
     if ((angle_n > M_PI/2) || (angle_n < -M_PI/2)){
         h_set = 0.0;
-        corr_scale = 2.5;
+        corr_scale = 5.0;
     }else{
         h_set = 1.0;
-        corr_scale = 0.5;
+        corr_scale = 1.0;
     }
 
     if (hk > 1.0)
@@ -917,7 +917,7 @@ VectorXd lagsDS::compute_flk(VectorXd xi, int k){
         xi_dot = (hk*A_l_matrix_[k] + (1-hk)*A_d_matrix_[k])*(xi - att_l_[k]);
 
         /* Sum of components + modulation/correction */
-        xi_dot = xi_dot - corr_scale*compute_lambda_k(xi,k)*compute_grad_hk(xi,k);
+        xi_dot = xi_dot - 0.1*corr_scale*compute_lambda_k(xi,k)*compute_grad_hk(xi,k);
     }
     return xi_dot;
 
@@ -929,23 +929,11 @@ VectorXd lagsDS::compute_flk(VectorXd xi, int k){
 
 VectorXd lagsDS::compute_f(VectorXd xi){
 
-    VectorXd xi_dot;  xi_dot.resize(M_);    xi_dot.setZero();
-    VectorXd f_g;     f_g.resize(M_);    f_g.setZero();
-    VectorXd f_l;     f_l.resize(M_);    f_l.setZero();
-
-    
+    VectorXd xi_dot;     xi_dot.resize(M_);    xi_dot.setZero();
 
     /* Locally Active Globally Stable DS bitches! */
     double alpha = compute_alpha(xi);
-    f_g  = compute_fg(xi);
-    f_l  = compute_fl(xi);
-
-    /* Create a tube around the trajectory instead of line */
-    /* Change this value depending on GPR function*/
-    if (alpha < 0.075) 
-        xi_dot = f_g;        
-    else 
-        xi_dot = alpha*f_g + (1-alpha)*f_l;
+    xi_dot = alpha*compute_fg(xi) + (1-alpha)*compute_fl(xi);
 
     return xi_dot;
 }
@@ -954,23 +942,13 @@ VectorXd lagsDS::compute_f(VectorXd xi){
 VectorXd lagsDS::compute_f(VectorXd xi, bool b_scale){
 
     VectorXd xi_dot;     xi_dot.resize(M_);    xi_dot.setZero();
-    VectorXd f_g;     f_g.resize(M_);    f_g.setZero();
-    VectorXd f_l;     f_l.resize(M_);    f_l.setZero();
 
     /* Locally Active Globally Stable DS bitches! */
     double alpha = compute_alpha(xi);
-    f_g  = compute_fg(xi);
-    f_l  = compute_fl(xi);
-
-    if (alpha < 0.075)
-            xi_dot = f_g;        
-    else {
-        if (b_scale)
-            xi_dot = alpha*f_g + (1/scale_)*(1-alpha)*f_l;
-        else
-            xi_dot = alpha*f_g + (1-alpha)*f_l;
-    }
-
+    if (b_scale)
+        xi_dot = alpha*compute_fg(xi) + (1/scale_)*(1-alpha)*compute_fl(xi);
+    else
+        xi_dot = alpha*compute_fg(xi) + (1-alpha)*compute_fl(xi);
 
     return xi_dot;
 }
